@@ -37,7 +37,7 @@ fn App() -> impl IntoView {
                             },
                             Err(err_msg) =>
                             {
-                                vec![view! {<p>format!("Failed due to {}", err_msg)</p>}.into_any()]
+                                vec![view! {<p>{format!("Failed due to {}", err_msg)}</p>}.into_any()]
                             }
                         }
                     },
