@@ -26,6 +26,9 @@ jobs:
 
       - name: Build with trunk 
         run: trunk build --release --public-url "/name_her/"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_API_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_API_KEY }}
 
       - name: Deploy to pages branch 
         uses: JamesIves/github-pages-deploy-action@v4
