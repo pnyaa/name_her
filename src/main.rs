@@ -28,16 +28,31 @@ fn App() -> impl IntoView {
     // Search bar query signals
     let (query, set_query) = signal(String::new());
 
+    // Checkbox : Show rejected
+    let (show_rejected, set_show_rejected) = signal(false);
+
     // Future searchable which responds to the search bar requests
     let filtered_names = move || {
         let q = query.get().to_lowercase();
         log!("From the filtering search bar \"{}\"", q);
 
         match names.get() {
-            Some(names) => match (names) {
+            Some(names) => match names {
                 Ok(names) => Ok(names
                     .into_iter()
-                    .filter(|n| n.name.to_lowercase().contains(&q))
+                    .filter(|n| {
+                        let rejected = match n.rejected {
+                            Some(r) => r,
+                            None => false,
+                        };
+                        if rejected && (!show_rejected.get())
+                        {
+                            return false;
+                        }
+
+                        n.name.to_lowercase().contains(&q)
+                        })
+
                     .collect::<Vec<_>>()),
                 Err(e) => Err(e),
             },
@@ -49,10 +64,13 @@ fn App() -> impl IntoView {
         <TitleEntry/>
         <div class="main">
 
+        <div class="search-container">
             <SearchBar value=query set_value=set_query />
+            <ShowRejectedBox value=show_rejected set_value=set_show_rejected />
+            
+        </div>
 
-            <NamesList names=filtered_names />
-
+        <NamesList names=filtered_names />
             //{AlphabetNav()}
 
         </div>
@@ -78,7 +96,7 @@ fn TitleEntry() -> impl IntoView {
 #[component]
 fn SearchBar(value: ReadSignal<String>, set_value: WriteSignal<String>) -> impl IntoView {
     view! {
-        <div class="search-container">
+
           <input
                 class="sleek-input"
                 type="text"
@@ -86,8 +104,26 @@ fn SearchBar(value: ReadSignal<String>, set_value: WriteSignal<String>) -> impl 
                 prop:value=value
                 on:input=move |e| set_value.set(event_target_value(&e))
             />
-        </div>
+
     }
+}
+
+#[component]
+fn ShowRejectedBox(value: ReadSignal<bool>, set_value: WriteSignal<bool>)-> impl IntoView {
+    view! {
+        <label class="sleek-checkbox">
+            <input 
+                type="checkbox"
+                on:change=move |e| {
+                    set_value.set(event_target_checked(&e));
+                }
+                prop:checked=value
+            />
+            " Show rejected names"
+        </label>
+
+    }
+
 }
 
 #[component]
@@ -136,10 +172,12 @@ fn jump_to(letter: char) {
     log!("Jump to {}", letter)
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 struct NameEntry {
     id: i32,
     name: String,
+
+    rejected: Option<bool>,
 }
 
 struct NameDisplayer {
@@ -153,114 +191,147 @@ async fn fetch_names(url: &str, api_key: &str) -> Result<Vec<NameEntry>, String>
         NameEntry {
             id: 1,
             name: "Lacy".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "Laurel".to_string(),
+            ..Default::default()
+        },
+        NameEntry {
+            id: 2,
+            name: "Lexie".to_string(),
+            rejected: Some(true)
         },
         NameEntry {
             id: 2,
             name: "A".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "AA".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "B".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "BB".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "C".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "CC".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "D".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "DD".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "E".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "EE".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "F".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "FF".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "G".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "GG".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "H".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "HH".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "I".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "II".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "J".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "JJ".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "K".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "KK".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "L".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "LL".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "M".to_string(),
+            ..Default::default()
         },
         NameEntry {
             id: 2,
             name: "MM".to_string(),
+            ..Default::default()
         },
     ]);
 

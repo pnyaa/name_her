@@ -74,13 +74,22 @@
 
 .sleek-input {
     width: 100% ;
-    margin:30px 0px;
+    margin:1rem 0px;
     padding: 12px 20px;
     //background-color: #00ffff;
     outline: none;
     border: 2px solid #e0e0e0;
     border-radius: 12px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.sleek-checkbox {
+    display:flex;
+    color:#757575;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    text-overflow: ellipsis
 }
 
 //
