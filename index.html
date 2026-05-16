@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Names & Comments</title>
+
+    <!--Trunk setup-->
+    <link rel="stylesheet" href="/name-her/index-597d90855083f957.css" integrity="sha384-7GZOiJ7WwbJ2PKz3iZ2Vt/NHNz65guUjQZ/uo6o2LYkbO/Al8pImelhUBJCReJw+"/>
+    
+<script type="module">
+import init, * as bindings from '/name-her/name_her-299d99118ee6f787.js';
+const wasm = await init({ module_or_path: '/name-her/name_her-299d99118ee6f787_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+
+    
+
+    <!-- Standard SEO and Styling -->
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; padding: 2rem; }
+
+    </style>
+<link rel="modulepreload" href="/name-her/name_her-299d99118ee6f787.js" crossorigin="anonymous" integrity="sha384-KnHSUMUv8LnEchd8b6iL1oY5AZEJrXavXCyoLh+q3PI7lbb8qLbgOwpg+sqRhxK/"><link rel="preload" href="/name-her/name_her-299d99118ee6f787_bg.wasm" crossorigin="anonymous" integrity="sha384-F6HUM9Cd8XOKKx6xiVEG9WrcaN5z5pfWn9FnyGy+2wXopgVrpndpMv8NBmW9A+Rn" as="fetch" type="application/wasm"></head>
+<body>
+    <!-- 
+      Your Rust framework (Leptos/Yew) will typically mount 
+      itself to the <body> or a specific <div> like this one.
+    -->
+    <div id="main"></div>
+</body>
+</html>
