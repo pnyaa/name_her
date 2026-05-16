@@ -1,0 +1,34 @@
+name: Depl0y to Github Pages
+
+on: 
+  push:
+    branches: [ main ]
+
+permisions:
+  contents: write
+
+jobs:
+
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      
+      - name: Download and install trunk
+        run: |
+          wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+          sudo mv trunk /usr/local/bin
+
+      - name: Build with trunk 
+        run: trunk build --release --public-url "/name_her/"
+
+      - name: Deploy to pages branch 
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist
+          branch: pages
