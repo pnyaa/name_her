@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
 
-permisions:
+permissions:
   contents: write
 
 jobs:
