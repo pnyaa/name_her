@@ -15,7 +15,8 @@ fn App() -> impl IntoView {
     log!("Getting environment");
     let supabase_url = env!("SUPABASE_URL"); 
     let publishable_api_key = env!("SUPABASE_PUBLISHABLE_API_KEY");
-    log!("Done Getting environment");
+    log!("Done Getting environment. Server url was \"{}\"", supabase_url);
+    
 
     let names = LocalResource::new(move || {
         async move { fetch_names(&supabase_url, &publishable_api_key).await }
