@@ -963,6 +963,7 @@ dependencies = [
  "gloo-net 0.7.0",
  "leptos",
  "serde",
+ "web-sys",
 ]
 
 [[package]]

@@ -7,4 +7,5 @@ edition = "2024"
 gloo-net = "0.7.0"
 leptos = {version = "0.8.19", features = ["csr"]}
 serde = { version = "1.0.228", features = ["derive"] }
+web-sys = { version = "0.3.98", features = ["Document", "HtmlElement"] }
 
