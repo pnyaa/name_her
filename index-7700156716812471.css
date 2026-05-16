@@ -1,0 +1,84 @@
+*, *:before, *:after {
+  font-family: sans-serif;
+  box-sizing: border-box;
+  background: #f4f4f4;
+}
+
+.top-bar {
+  padding: 0.75rem 1.5rem;
+  width: 100%;
+  background: #ffffff;
+  display: flex;
+  border-bottom: 1px solid #eaeaea;
+  align-items: center;
+}
+
+.header-content {
+  display: flex;
+  background: #ffffff;
+  align-items: center; /* Vertically centers the image with the text */
+  gap: 12px;
+}
+
+.profile-circle {
+  background: #ffffff;
+  height: 3.8rem;
+  width: 3.8rem;
+  border-radius: 50%;
+  border: 2px solid #ddd;
+  object-fit: cover;
+  max-height: 100%;
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  background: #ffffff;
+  font-size: 3.5rem;
+  line-height: 1.2;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.main {
+  padding: 0.2rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: 100%;
+}
+
+.search-container {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sleek-input {
+  width: 100%;
+  margin: 30px 0px;
+  padding: 12px 20px;
+  outline: none;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.scroll-viewport {
+  width: 100%;
+  margin: 12px 0px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  height: 400px;
+}
+
+.alphabet-nav {
+  position: absolute;
+  top: 100px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background-color: #52e49f;
+}
