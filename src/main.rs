@@ -3,6 +3,7 @@ use leptos::logging::log;
 use leptos::prelude::*;
 use leptos::{mount::mount_to_body, view, *};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use std::rc::Rc;
 
 fn main() {
@@ -43,10 +44,15 @@ fn App() -> impl IntoView {
 
 /// # DatabaseDetails
 /// We use this to store the public auth for the database
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct DatabaseDetails {
     pub url: &'static str,
     pub api: &'static str,
+
+    /// We use local storage to create a uuid, it doesn't contain personal info
+    /// but just gives an id a "good enough" identifier so people won't 
+    /// accidentally vote twice
+    pub uuid: String,
 }
 
 impl DatabaseDetails {
@@ -64,6 +70,34 @@ impl DatabaseDetails {
         DatabaseDetails {
             url: supabase_url,
             api: publishable_api_key,
+            uuid: Self::get_or_make_uuid(),
+        }
+    }
+
+    fn get_or_make_uuid() -> String 
+    {
+        let storage = leptos_use::use_window().as_ref().unwrap().local_storage().ok().flatten();
+        match storage
+        {
+            Some(storage) => {
+
+                if let Ok(Some(id)) = storage.get_item("naming_device_id"){
+                    log!("Reusing found id {}", id);
+                    return id;
+                }
+                
+                let new_id = Uuid::new_v4().to_string();
+                match storage.set_item("naming_device_id", &new_id)
+                {
+                    Ok(_) => log!("Success making new id {}", new_id),
+                    Err(e) => log!("Couldn't make new id due to {:#?}", e),
+                };
+                new_id.to_string()
+            },
+            None => {
+                log!("No storage, using anon");
+                "anonymous".to_string()
+            },
         }
     }
 }
@@ -164,6 +198,7 @@ impl NameEntryRawDb {
 #[derive(Clone)]
 pub struct NameEntry {
     id: i32,
+    icon: char,
     name: String,
     notes: String,
     love_count: u32,
@@ -178,7 +213,7 @@ impl NameEntry
 {
     pub fn from_db(entry: NameEntryRawDb) -> NameEntry
     {
-        NameEntry { 
+        let mut n = NameEntry { 
             id: entry.id, 
             name: entry.name, 
             notes: entry.notes.map_or("".to_string(), |v| v), 
@@ -188,6 +223,45 @@ impl NameEntry
             iick_count: entry.iick_count.map_or(0, |v|v), 
             is_rejected: entry.is_rejected.map_or(false, |v|v ), 
             is_favourite: entry.is_favourite.map_or(false, |v|v ),  
+            icon: ' ',
+        };
+
+        n.icon = match n.is_favourite {
+            true => '⭐',
+            false => match n.is_rejected{
+                true => '❌',
+                false => '\u{2001}',
+            },
+        };
+
+        n
+    }
+
+    pub fn on_click(name_id: i32, which_button: char)
+    {
+        match which_button {
+            '💖' => {log!("Loved {}", name_id);}
+            '👍' => {}
+            '👎' => {}
+            '🤢' => {}
+            _ => {}
+        }
+    }
+
+    pub fn into_table_row(self) -> impl IntoView
+    {
+        view!{
+            <tr>
+                <th>{self.icon}</th> 
+                <th>{self.name}</th>
+                <th>
+                    <button on:click = move|_| Self::on_click(self.id, '💖')>"💖"</button> {self.love_count}
+                    <button>"👍"</button> {self.like_count}
+                    <button>"👎"</button> {self.dislike_count}
+                    <button>"🤢"</button> {self.iick_count}
+                </th>
+                <th>{self.notes}</th>
+            </tr>
         }
     }
 
@@ -337,11 +411,23 @@ fn NamesList(
                     match names()
                     {
                         Ok(names) => {
-                                    names.into_iter().map(|entry| view! {<li>{entry.name}</li>}.into_any()).collect_view()
+                            view! {
+                                <table>
+                                <tr>
+                                    <th>Status</th> 
+                                    <th>Name</th>
+                                    <th>Rating</th>
+                                    <th>Notes</th>
+                                </tr>
+                                
+                                {names.into_iter().map(|entry| entry.into_table_row().into_any()).collect_view()}
+                                
+                                </table>
+                            }.into_any()
                                 },
                                 Err(err_msg) =>
                                 {
-                                    vec![view! {<p>{format!("Failed due to {}", err_msg)}</p>}.into_any()]
+                                    view! {<p>{format!("Failed due to {}", err_msg)}</p>}.into_any()
                                 }
                             }
                         }
@@ -451,6 +537,7 @@ pub async fn get_mock_data() -> Result<Vec<NameEntryRawDb>, String> {
         NameEntryRawDb {
             id: 1,
             name: "Lacy".to_string(),
+            is_favourite: Some(true),
             ..Default::default()
         },
         NameEntryRawDb {
@@ -462,6 +549,13 @@ pub async fn get_mock_data() -> Result<Vec<NameEntryRawDb>, String> {
             id: 2,
             name: "Lexie".to_string(),
             is_rejected: Some(true),
+            ..Default::default()
+        },
+        NameEntryRawDb {
+            id: 3,
+            name: "Lina".to_string(),
+            is_rejected: Some(true),
+            notes: Some("There's another transgender girl called Lina who is in graphics programming, so that feels pretty taken".to_string()),
             ..Default::default()
         },
         NameEntryRawDb {
