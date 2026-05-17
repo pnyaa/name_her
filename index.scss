@@ -141,3 +141,82 @@
     box-shadow: 0 2px 4px rgba(100, 108, 255, 0.2);
 }
 
+.name-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.name-table th,
+.name-table td {
+    text-align: left;
+    padding: 1rem 0.75rem;
+    vertical-align: top;
+    line-height: 1.4;
+    border-bottom: 1px solid #e8e8e8;
+    min-width: 0;
+}
+
+.name-table th {
+    font-weight: 700;
+    color: #444;
+    background: #fafafa;
+}
+
+.name-table th.status-cell,
+.name-table td.status-cell {
+    width: 4rem;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.name-table th.name-cell,
+.name-table td.name-cell,
+.name-table th.rating-cell,
+.name-table td.rating-cell {
+    width: auto;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.name-table th.name-cell,
+.name-table td.name-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.name-table td.notes-cell {
+    width: 100%;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.name-table td.rating-cell {
+    width: auto;
+}
+
+.name-table td.rating-cell .rating-content {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.2rem;
+    align-items: center;
+    justify-content: flex-start;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.name-table td.rating-cell button {
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid #ddd;
+    background: #fafafa;
+    color: #444;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.name-table td.rating-cell button:hover {
+    background: #f0f0f0;
+}
+

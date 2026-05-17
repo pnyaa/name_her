@@ -367,35 +367,37 @@ impl NameEntry {
         let selected = selected_vote.get();
         view! {
             <tr>
-                <th>{icon}</th>
-                <th>{name}</th>
-                <th>
-                    <button on:click=on_love>"💖"</button>
-                    {if selected == Some('💖') {
-                        view! { <strong>{love_count.get()}</strong> }.into_any()
-                    } else {
-                        view! { <span>{love_count.get()}</span> }.into_any()
-                    }}
-                    <button on:click=on_like>"👍"</button>
-                    {if selected == Some('👍') {
-                        view! { <strong>{like_count.get()}</strong> }.into_any()
-                    } else {
-                        view! { <span>{like_count.get()}</span> }.into_any()
-                    }}
-                    <button on:click=on_dislike>"👎"</button>
-                    {if selected == Some('👎') {
-                        view! { <strong>{dislike_count.get()}</strong> }.into_any()
-                    } else {
-                        view! { <span>{dislike_count.get()}</span> }.into_any()
-                    }}
-                    <button on:click=on_iick>"🤢"</button>
-                    {if selected == Some('🤢') {
-                        view! { <strong>{iick_count.get()}</strong> }.into_any()
-                    } else {
-                        view! { <span>{iick_count.get()}</span> }.into_any()
-                    }}
-                </th>
-                <th>{notes}</th>
+                <td class="status-cell">{icon}</td>
+                <td class="name-cell">{name}</td>
+                <td class="rating-cell">
+                    <div class="rating-content">
+                        <button on:click=on_love>"💖"</button>
+                        {if selected == Some('💖') {
+                            view! { <strong>{love_count.get()}</strong> }.into_any()
+                        } else {
+                            view! { <span>{love_count.get()}</span> }.into_any()
+                        }}
+                        <button on:click=on_like>"👍"</button>
+                        {if selected == Some('👍') {
+                            view! { <strong>{like_count.get()}</strong> }.into_any()
+                        } else {
+                            view! { <span>{like_count.get()}</span> }.into_any()
+                        }}
+                        <button on:click=on_dislike>"👎"</button>
+                        {if selected == Some('👎') {
+                            view! { <strong>{dislike_count.get()}</strong> }.into_any()
+                        } else {
+                            view! { <span>{dislike_count.get()}</span> }.into_any()
+                        }}
+                        <button on:click=on_iick>"🤢"</button>
+                        {if selected == Some('🤢') {
+                            view! { <strong>{iick_count.get()}</strong> }.into_any()
+                        } else {
+                            view! { <span>{iick_count.get()}</span> }.into_any()
+                        }}
+                    </div>
+                </td>
+                <td class="notes-cell">{notes}</td>
             </tr>
         }
     }
@@ -546,12 +548,12 @@ fn NamesList(
                     {
                         Ok(names) => {
                             view! {
-                                <table>
+                                <table class="name-table">
                                 <tr>
-                                    <th>Status</th> 
-                                    <th>Name</th>
-                                    <th>Rating</th>
-                                    <th>Notes</th>
+                                    <th class="status-cell">Status</th>
+                                    <th class="name-cell">Name</th>
+                                    <th class="rating-cell">Rating</th>
+                                    <th class="notes-cell">Notes</th>
                                 </tr>
                                 
                                 {names.into_iter().map(|entry| entry.into_table_row().into_any()).collect_view()}
@@ -672,6 +674,7 @@ pub async fn get_mock_data() -> Result<Vec<NameEntryRawDb>, String> {
             id: 1,
             name: "Lacy".to_string(),
             is_favourite: Some(true),
+            notes: Some("Currently her favourite .................. ........... ......... ............ .............. ...... ............... .".to_string()),
             ..Default::default()
         },
         NameEntryRawDb {
