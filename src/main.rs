@@ -369,6 +369,7 @@ impl NameEntry {
             
             // Auto-fill the iick reason box with the name and trigger focus
             if let Some(iick_mgr) = use_context::<IickManager>() {
+                log!("Triggering iick focus");
                 iick_mgr.name_write.set(name_for_iick.clone());
                 iick_mgr.focus_trigger_write.set(iick_mgr.focus_trigger.get() + 1);
             }
@@ -713,8 +714,11 @@ fn IickReasonRenderer(value: IickManager) -> impl IntoView {
     };
     
     // Watch the focus trigger signal and focus the input when it changes
+    // The focusing is an atomic counter, and triggers on 0 when the page loads
     Effect::new(move || {
-        let _ = value.focus_trigger.get();
+        let v = value.focus_trigger.get();
+        if v == 0i32 {return;}
+        log!("Focusing with value {}", v);
         if let Some(input) = reason_input_ref.get() {
             let _ = input.focus();
         }
