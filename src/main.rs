@@ -24,6 +24,8 @@ fn App() -> impl IntoView {
     // Displayable features
     let filtering = NameFilteringDisplay::new();
     let suggestions = SuggestionsManager::new();
+    let iick_manager = IickManager::new();
+    provide_context(iick_manager.clone());
 
 
     view! {
@@ -32,6 +34,7 @@ fn App() -> impl IntoView {
 
         <NameFilteringDisplayRenderer value=filtering />
         <SuggestionsRenderer value = suggestions />
+        <IickReasonRenderer value = iick_manager />
 
         </div>
 
@@ -282,7 +285,8 @@ impl NameEntry {
 
     pub fn into_table_row(self) -> impl IntoView {
         let icon = self.icon;
-        let name = self.name;
+        let name = self.name.clone();
+        let name_for_iick = self.name;
         let notes = self.notes;
         let love_count = self.love_count;
         let like_count = self.like_count;
@@ -362,6 +366,12 @@ impl NameEntry {
             }
             iick_count_set.set(iick_count.get() + 1);
             selected_vote_set.set(Some('🤢'));
+            
+            // Auto-fill the iick reason box with the name and trigger focus
+            if let Some(iick_mgr) = use_context::<IickManager>() {
+                iick_mgr.name_write.set(name_for_iick.clone());
+                iick_mgr.focus_trigger_write.set(iick_mgr.focus_trigger.get() + 1);
+            }
         };
 
         let selected = selected_vote.get();
@@ -614,6 +624,34 @@ impl SuggestionsManager {
     }
 }
 
+#[derive(Clone)]
+struct IickManager {
+    pub name_read: ReadSignal<String>,
+    pub name_write: WriteSignal<String>,
+
+    pub reason_read: ReadSignal<String>,
+    pub reason_write: WriteSignal<String>,
+    
+    pub focus_trigger: ReadSignal<i32>,
+    pub focus_trigger_write: WriteSignal<i32>,
+}
+
+impl IickManager {
+    fn new() -> Self {
+        let (name_read, name_write) = signal(String::new());
+        let (reason_read, reason_write) = signal(String::new());
+        let (focus_trigger, focus_trigger_write) = signal(0);
+        IickManager {
+            name_read,
+            name_write,
+            reason_read,
+            reason_write,
+            focus_trigger,
+            focus_trigger_write,
+        }
+    }
+}
+
 #[component]
 fn SuggestionsRenderer(value: SuggestionsManager) -> impl IntoView {
     // Function to act the spawn the form submission
@@ -652,6 +690,67 @@ fn SuggestionsRenderer(value: SuggestionsManager) -> impl IntoView {
             placeholder="Notes (From who? Why? etc.)"
             value=value.notes_read
             set_value=value.notes_write
+        />
+
+        </form>
+
+    }
+}
+
+#[component]
+fn IickReasonRenderer(value: IickManager) -> impl IntoView {
+    let reason_input_ref = NodeRef::<html::Input>::new();
+    
+    let on_submit = move |_| {
+        let name = value.name_read.get();
+        let reason = value.reason_read.get();
+
+        log!("Iick reason recieved for \"{}\" : \"{}\"", name, reason);
+        
+        // Clear the form after submission
+        value.name_write.set(String::new());
+        value.reason_write.set(String::new());
+    };
+    
+    // Watch the focus trigger signal and focus the input when it changes
+    Effect::new(move || {
+        let _ = value.focus_trigger.get();
+        if let Some(input) = reason_input_ref.get() {
+            let _ = input.focus();
+        }
+    });
+
+    view! {
+        <div>
+            <label class="sleek-checkbox">
+            <h2> "Got the iick?"</h2>
+            </label>
+        </div>
+
+        <form on:submit = move |e| {
+                e.prevent_default();
+                on_submit(());
+            }>
+
+        <div class="input-group">
+        <SleekTextInput
+            placeholder="Name"
+            value=value.name_read
+            set_value=value.name_write
+        />
+
+        <button type="submit" class="sleek-button">
+            "Submit"
+        </button>
+        </div>
+
+        <input
+            node_ref=reason_input_ref
+            type="text"
+            class="sleek-input"
+            placeholder="Why does it give the iick?"
+            prop:value=value.reason_read
+            on:input=move |e| value.reason_write.set(event_target_value(&e))
         />
 
         </form>
