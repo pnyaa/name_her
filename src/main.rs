@@ -209,6 +209,8 @@ pub struct NameEntry {
     dislike_count_set: WriteSignal<u32>,
     iick_count: ReadSignal<u32>,
     iick_count_set: WriteSignal<u32>,
+    selected_vote: ReadSignal<Option<char>>,
+    selected_vote_set: WriteSignal<Option<char>>,
     is_rejected: bool,
     is_favourite: bool,
 }
@@ -219,6 +221,7 @@ impl NameEntry {
         let (like_count, like_count_set) = signal(entry.like_count.map_or(0, |v| v));
         let (dislike_count, dislike_count_set) = signal(entry.dislike_count.map_or(0, |v| v));
         let (iick_count, iick_count_set) = signal(entry.iick_count.map_or(0, |v| v));
+        let (selected_vote, selected_vote_set) = signal(None::<char>);
 
         let mut n = NameEntry {
             id: entry.id,
@@ -232,6 +235,8 @@ impl NameEntry {
             dislike_count_set,
             iick_count,
             iick_count_set,
+            selected_vote,
+            selected_vote_set,
             is_rejected: entry.is_rejected.map_or(false, |v| v),
             is_favourite: entry.is_favourite.map_or(false, |v| v),
             icon: ' ',
@@ -249,6 +254,21 @@ impl NameEntry {
     }
 
     pub fn on_click(&self, which_button: char) {
+        let current_vote = self.selected_vote.get();
+        if current_vote == Some(which_button) {
+            return;
+        }
+
+        if let Some(prev_vote) = current_vote {
+            match prev_vote {
+                '💖' => self.love_count_set.set(self.love_count.get().saturating_sub(1)),
+                '👍' => self.like_count_set.set(self.like_count.get().saturating_sub(1)),
+                '👎' => self.dislike_count_set.set(self.dislike_count.get().saturating_sub(1)),
+                '🤢' => self.iick_count_set.set(self.iick_count.get().saturating_sub(1)),
+                _ => {}
+            }
+        }
+
         match which_button {
             '💖' => self.love_count_set.set(self.love_count.get() + 1),
             '👍' => self.like_count_set.set(self.like_count.get() + 1),
@@ -256,6 +276,8 @@ impl NameEntry {
             '🤢' => self.iick_count_set.set(self.iick_count.get() + 1),
             _ => {}
         }
+
+        self.selected_vote_set.set(Some(which_button));
     }
 
     pub fn into_table_row(self) -> impl IntoView {
@@ -266,25 +288,112 @@ impl NameEntry {
         let like_count = self.like_count;
         let dislike_count = self.dislike_count;
         let iick_count = self.iick_count;
+        let selected_vote = self.selected_vote;
+        let selected_vote_set = self.selected_vote_set;
         let love_count_set = self.love_count_set;
         let like_count_set = self.like_count_set;
         let dislike_count_set = self.dislike_count_set;
         let iick_count_set = self.iick_count_set;
 
-        let on_love = move |_| love_count_set.set(love_count.get() + 1);
-        let on_like = move |_| like_count_set.set(like_count.get() + 1);
-        let on_dislike = move |_| dislike_count_set.set(dislike_count.get() + 1);
-        let on_iick = move |_| iick_count_set.set(iick_count.get() + 1);
+        let on_love = move |_| {
+            let current = selected_vote.get();
+            if current == Some('💖') {
+                love_count_set.set(love_count.get().saturating_sub(1));
+                selected_vote_set.set(None);
+                return;
+            }
+            if current == Some('👍') {
+                like_count_set.set(like_count.get().saturating_sub(1));
+            } else if current == Some('👎') {
+                dislike_count_set.set(dislike_count.get().saturating_sub(1));
+            } else if current == Some('🤢') {
+                iick_count_set.set(iick_count.get().saturating_sub(1));
+            }
+            love_count_set.set(love_count.get() + 1);
+            selected_vote_set.set(Some('💖'));
+        };
+        let on_like = move |_| {
+            let current = selected_vote.get();
+            if current == Some('👍') {
+                like_count_set.set(like_count.get().saturating_sub(1));
+                selected_vote_set.set(None);
+                return;
+            }
+            if current == Some('💖') {
+                love_count_set.set(love_count.get().saturating_sub(1));
+            } else if current == Some('👎') {
+                dislike_count_set.set(dislike_count.get().saturating_sub(1));
+            } else if current == Some('🤢') {
+                iick_count_set.set(iick_count.get().saturating_sub(1));
+            }
+            like_count_set.set(like_count.get() + 1);
+            selected_vote_set.set(Some('👍'));
+        };
+        let on_dislike = move |_| {
+            let current = selected_vote.get();
+            if current == Some('👎') {
+                dislike_count_set.set(dislike_count.get().saturating_sub(1));
+                selected_vote_set.set(None);
+                return;
+            }
+            if current == Some('💖') {
+                love_count_set.set(love_count.get().saturating_sub(1));
+            } else if current == Some('👍') {
+                like_count_set.set(like_count.get().saturating_sub(1));
+            } else if current == Some('🤢') {
+                iick_count_set.set(iick_count.get().saturating_sub(1));
+            }
+            dislike_count_set.set(dislike_count.get() + 1);
+            selected_vote_set.set(Some('👎'));
+        };
+        let on_iick = move |_| {
+            let current = selected_vote.get();
+            if current == Some('🤢') {
+                iick_count_set.set(iick_count.get().saturating_sub(1));
+                selected_vote_set.set(None);
+                return;
+            }
+            if current == Some('💖') {
+                love_count_set.set(love_count.get().saturating_sub(1));
+            } else if current == Some('👍') {
+                like_count_set.set(like_count.get().saturating_sub(1));
+            } else if current == Some('👎') {
+                dislike_count_set.set(dislike_count.get().saturating_sub(1));
+            }
+            iick_count_set.set(iick_count.get() + 1);
+            selected_vote_set.set(Some('🤢'));
+        };
 
+        let selected = selected_vote.get();
         view! {
             <tr>
                 <th>{icon}</th>
                 <th>{name}</th>
                 <th>
-                    <button on:click=on_love>"💖"</button> {love_count.get()}
-                    <button on:click=on_like>"👍"</button> {like_count.get()}
-                    <button on:click=on_dislike>"👎"</button> {dislike_count.get()}
-                    <button on:click=on_iick>"🤢"</button> {iick_count.get()}
+                    <button on:click=on_love>"💖"</button>
+                    {if selected == Some('💖') {
+                        view! { <strong>{love_count.get()}</strong> }.into_any()
+                    } else {
+                        view! { <span>{love_count.get()}</span> }.into_any()
+                    }}
+                    <button on:click=on_like>"👍"</button>
+                    {if selected == Some('👍') {
+                        view! { <strong>{like_count.get()}</strong> }.into_any()
+                    } else {
+                        view! { <span>{like_count.get()}</span> }.into_any()
+                    }}
+                    <button on:click=on_dislike>"👎"</button>
+                    {if selected == Some('👎') {
+                        view! { <strong>{dislike_count.get()}</strong> }.into_any()
+                    } else {
+                        view! { <span>{dislike_count.get()}</span> }.into_any()
+                    }}
+                    <button on:click=on_iick>"🤢"</button>
+                    {if selected == Some('🤢') {
+                        view! { <strong>{iick_count.get()}</strong> }.into_any()
+                    } else {
+                        view! { <span>{iick_count.get()}</span> }.into_any()
+                    }}
                 </th>
                 <th>{notes}</th>
             </tr>
