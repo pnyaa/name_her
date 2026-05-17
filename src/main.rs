@@ -3,8 +3,8 @@ use leptos::logging::log;
 use leptos::prelude::*;
 use leptos::{mount::mount_to_body, view, *};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::rc::Rc;
+use uuid::Uuid;
 
 fn main() {
     mount_to_body(|| view! {<App />})
@@ -26,7 +26,6 @@ fn App() -> impl IntoView {
     let suggestions = SuggestionsManager::new();
     let iick_manager = IickManager::new();
     provide_context(iick_manager.clone());
-
 
     view! {
         <TitleEntry/>
@@ -53,7 +52,7 @@ struct DatabaseDetails {
     pub api: &'static str,
 
     /// We use local storage to create a uuid, it doesn't contain personal info
-    /// but just gives an id a "good enough" identifier so people won't 
+    /// but just gives an id a "good enough" identifier so people won't
     /// accidentally vote twice
     pub uuid: String,
 }
@@ -77,30 +76,31 @@ impl DatabaseDetails {
         }
     }
 
-    fn get_or_make_uuid() -> String 
-    {
-        let storage = leptos_use::use_window().as_ref().unwrap().local_storage().ok().flatten();
-        match storage
-        {
+    fn get_or_make_uuid() -> String {
+        let storage = leptos_use::use_window()
+            .as_ref()
+            .unwrap()
+            .local_storage()
+            .ok()
+            .flatten();
+        match storage {
             Some(storage) => {
-
-                if let Ok(Some(id)) = storage.get_item("naming_device_id"){
+                if let Ok(Some(id)) = storage.get_item("naming_device_id") {
                     log!("Reusing found id {}", id);
                     return id;
                 }
-                
+
                 let new_id = Uuid::new_v4().to_string();
-                match storage.set_item("naming_device_id", &new_id)
-                {
+                match storage.set_item("naming_device_id", &new_id) {
                     Ok(_) => log!("Success making new id {}", new_id),
                     Err(e) => log!("Couldn't make new id due to {:#?}", e),
                 };
                 new_id.to_string()
-            },
+            }
             None => {
                 log!("No storage, using anon");
                 "anonymous".to_string()
-            },
+            }
         }
     }
 }
@@ -119,82 +119,20 @@ struct NameManager {
 
 impl NameManager {
     async fn new_async() -> NameManager {
-
-        // Get our raw database source and then extract away the optionals with default values 
+        // Get our raw database source and then extract away the optionals with default values
         let list = match NameEntryRawDb::get_data().await {
-            Ok(raw_list) => {
-                
-                Ok(Rc::new(raw_list.into_iter().map(|raw| NameEntry::from_db(raw)).collect::<Vec<_>>()))
-                
-                },
+            Ok(raw_list) => Ok(Rc::new(
+                raw_list
+                    .into_iter()
+                    .map(|raw| NameEntry::from_db(raw))
+                    .collect::<Vec<_>>(),
+            )),
             Err(e) => Err(e),
         };
 
         NameManager { list }
     }
 }
-
-/// # NameEntryRawDb
-/// Raw optional values included in from the database
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
-pub struct NameEntryRawDb {
-    id: i32,
-    name: String,
-    notes: Option<String>,
-    love_count: Option<u32>,
-    like_count: Option<u32>,
-    dislike_count: Option<u32>,
-    iick_count: Option<u32>,
-    is_rejected: Option<bool>,
-    is_favourite: Option<bool>,
-}
-
-impl NameEntryRawDb {
-    async fn get_data() -> Result<Vec<NameEntryRawDb>, String> {
-        //if cfg!(debug_assertions) {
-            get_mock_data().await
-        //} else {
-        //    Self::get_real_data().await
-        //}
-    }
-
-    pub async fn get_real_data() -> Result<Vec<NameEntryRawDb>, String> {
-        let db_details =
-            use_context::<DatabaseDetails>().expect("Failed to get the database details");
-        log!("Fetching begins");
-
-        // Address and publishable api key allowable for in browser use with rls
-        let table_url = format!("{}/rest/v1/names?select=*", db_details.url);
-
-        // Request all the names from the server
-        let resp = match Request::get(&table_url)
-            .header("apikey", db_details.api)
-            .header("Authorization", &format!("Bearer {}", db_details.api))
-            .send()
-            .await
-        {
-            Ok(resp) => resp,
-            Err(err) => {
-                log!("Got an error response {}", err);
-                return Err(format!("Failed to make request due to {}", err.to_string()));
-            }
-        };
-
-        log!("Got response {:?}", resp);
-        let names = match resp.json::<Vec<NameEntryRawDb>>().await {
-            Ok(val) => val,
-            Err(err) => {
-                let err_str = format!("Failed to deserialize due to {}", err);
-                log!("{}", err_str);
-                return Err(err_str);
-            }
-        };
-
-        log!("Fetched {} names", names.iter().len());
-        Ok(names)
-    }
-}
-
 
 /// # NameEntry
 /// Optionals stripped out from the database for display
@@ -264,10 +202,18 @@ impl NameEntry {
 
         if let Some(prev_vote) = current_vote {
             match prev_vote {
-                '💖' => self.love_count_set.set(self.love_count.get().saturating_sub(1)),
-                '👍' => self.like_count_set.set(self.like_count.get().saturating_sub(1)),
-                '👎' => self.dislike_count_set.set(self.dislike_count.get().saturating_sub(1)),
-                '🤢' => self.iick_count_set.set(self.iick_count.get().saturating_sub(1)),
+                '💖' => self
+                    .love_count_set
+                    .set(self.love_count.get().saturating_sub(1)),
+                '👍' => self
+                    .like_count_set
+                    .set(self.like_count.get().saturating_sub(1)),
+                '👎' => self
+                    .dislike_count_set
+                    .set(self.dislike_count.get().saturating_sub(1)),
+                '🤢' => self
+                    .iick_count_set
+                    .set(self.iick_count.get().saturating_sub(1)),
                 _ => {}
             }
         }
@@ -366,12 +312,14 @@ impl NameEntry {
             }
             iick_count_set.set(iick_count.get() + 1);
             selected_vote_set.set(Some('🤢'));
-            
+
             // Auto-fill the iick reason box with the name and trigger focus
             if let Some(iick_mgr) = use_context::<IickManager>() {
                 log!("Triggering iick focus");
                 iick_mgr.name_write.set(name_for_iick.clone());
-                iick_mgr.focus_trigger_write.set(iick_mgr.focus_trigger.get() + 1);
+                iick_mgr
+                    .focus_trigger_write
+                    .set(iick_mgr.focus_trigger.get() + 1);
             }
         };
 
@@ -418,30 +366,31 @@ impl NameEntry {
 // Displaying the filtered names
 //
 
-struct NameFilteringDisplay
-{
+struct NameFilteringDisplay {
     pub filter_query: ReadSignal<String>,
     pub set_filter_query: WriteSignal<String>,
 
     pub show_rejected: ReadSignal<bool>,
-    pub set_show_rejected: WriteSignal<bool>
+    pub set_show_rejected: WriteSignal<bool>,
 }
 
-impl NameFilteringDisplay
-{
-    pub fn new() -> NameFilteringDisplay
-    {
+impl NameFilteringDisplay {
+    pub fn new() -> NameFilteringDisplay {
         // Search bar query signals
         let (filter_query, set_filter_query) = signal(String::new());
 
         // Checkbox : Show rejected
         let (show_rejected, set_show_rejected) = signal(false);
 
-        NameFilteringDisplay { filter_query, set_filter_query, show_rejected, set_show_rejected }
+        NameFilteringDisplay {
+            filter_query,
+            set_filter_query,
+            show_rejected,
+            set_show_rejected,
+        }
     }
 
-    pub fn into_view(self: Self) -> impl IntoView
-    {
+    pub fn into_view(self: Self) -> impl IntoView {
         // Future searchable which responds to the search bar requests
         let filtered_names = move || {
             let q = self.filter_query.get().to_lowercase();
@@ -452,20 +401,17 @@ impl NameFilteringDisplay
             match name_manager.0.get() {
                 Some(manager) => match manager.list {
                     Ok(names) => {
-
-                        // Extract the matching names, right now we're copying the ones that 
-                        // pass the filter so that they can be displayed. 
+                        // Extract the matching names, right now we're copying the ones that
+                        // pass the filter so that they can be displayed.
                         // TODO: Try and remove the copy
                         let v = names
                             .iter()
                             .filter(|n| {
-                                if n.is_rejected && (!self.show_rejected.get())
-                                {
+                                if n.is_rejected && (!self.show_rejected.get()) {
                                     return false;
                                 }
-                                n.name.to_lowercase().contains(&q)}
-                        
-                            )   
+                                n.name.to_lowercase().contains(&q)
+                            })
                             .cloned()
                             .collect::<Vec<_>>();
                         Ok(v)
@@ -485,13 +431,12 @@ impl NameFilteringDisplay
 }
 
 #[component]
-fn NameFilteringDisplayRenderer(value: NameFilteringDisplay) -> impl IntoView
-{
+fn NameFilteringDisplayRenderer(value: NameFilteringDisplay) -> impl IntoView {
     value.into_view()
 }
 
-//
-//
+// -----------------------------------------------------------------------------------------------
+// Displaying the filtered names
 //
 
 #[component]
@@ -566,9 +511,9 @@ fn NamesList(
                                     <th class="rating-cell">Rating</th>
                                     <th class="notes-cell">Notes</th>
                                 </tr>
-                                
+
                                 {names.into_iter().map(|entry| entry.into_table_row().into_any()).collect_view()}
-                                
+
                                 </table>
                             }.into_any()
                                 },
@@ -604,6 +549,10 @@ fn jump_to(letter: char) {
     log!("Jump to {}", letter)
 }
 
+// -----------------------------------------------------------------------------------------------
+// Suggestions manager
+//
+
 struct SuggestionsManager {
     pub suggestion_read: ReadSignal<String>,
     pub suggestion_write: WriteSignal<String>,
@@ -625,6 +574,10 @@ impl SuggestionsManager {
     }
 }
 
+// -----------------------------------------------------------------------------------------------
+// Iick manager
+//
+
 #[derive(Clone)]
 struct IickManager {
     pub name_read: ReadSignal<String>,
@@ -632,7 +585,7 @@ struct IickManager {
 
     pub reason_read: ReadSignal<String>,
     pub reason_write: WriteSignal<String>,
-    
+
     pub focus_trigger: ReadSignal<i32>,
     pub focus_trigger_write: WriteSignal<i32>,
 }
@@ -701,23 +654,25 @@ fn SuggestionsRenderer(value: SuggestionsManager) -> impl IntoView {
 #[component]
 fn IickReasonRenderer(value: IickManager) -> impl IntoView {
     let reason_input_ref = NodeRef::<html::Input>::new();
-    
+
     let on_submit = move |_| {
         let name = value.name_read.get();
         let reason = value.reason_read.get();
 
         log!("Iick reason recieved for \"{}\" : \"{}\"", name, reason);
-        
+
         // Clear the form after submission
         value.name_write.set(String::new());
         value.reason_write.set(String::new());
     };
-    
+
     // Watch the focus trigger signal and focus the input when it changes
     // The focusing is an atomic counter, and triggers on 0 when the page loads
     Effect::new(move || {
         let v = value.focus_trigger.get();
-        if v == 0i32 {return;}
+        if v == 0i32 {
+            return;
+        }
         log!("Focusing with value {}", v);
         if let Some(input) = reason_input_ref.get() {
             let _ = input.focus();
@@ -762,17 +717,78 @@ fn IickReasonRenderer(value: IickManager) -> impl IntoView {
     }
 }
 
-//
-//
+// -----------------------------------------------------------------------------------------------
+// Database structs
 //
 
-/// # get_mock_data
-/// Backup provider for debug fetching of string data
-pub async fn get_mock_data() -> Result<Vec<NameEntryRawDb>, String> {
-    let _db_details = use_context::<DatabaseDetails>().expect("Failed to get the database details");
+/// # NameEntryRawDb
+/// Raw optional values included in from the database
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct NameEntryRawDb {
+    id: i32,
+    name: String,
+    notes: Option<String>,
+    love_count: Option<u32>,
+    like_count: Option<u32>,
+    dislike_count: Option<u32>,
+    iick_count: Option<u32>,
+    is_rejected: Option<bool>,
+    is_favourite: Option<bool>,
+}
 
-    log!("Fetching begins");
-    return Ok(vec![
+impl NameEntryRawDb {
+    async fn get_data() -> Result<Vec<NameEntryRawDb>, String> {
+        //if cfg!(debug_assertions) {
+        Self::get_mock_data().await
+        //} else {
+        //    Self::get_real_data().await
+        //}
+    }
+
+    pub async fn get_real_data() -> Result<Vec<NameEntryRawDb>, String> {
+        let db_details =
+            use_context::<DatabaseDetails>().expect("Failed to get the database details");
+        log!("Fetching begins");
+
+        // Address and publishable api key allowable for in browser use with rls
+        let table_url = format!("{}/rest/v1/names?select=*", db_details.url);
+
+        // Request all the names from the server
+        let resp = match Request::get(&table_url)
+            .header("apikey", db_details.api)
+            .header("Authorization", &format!("Bearer {}", db_details.api))
+            .send()
+            .await
+        {
+            Ok(resp) => resp,
+            Err(err) => {
+                log!("Got an error response {}", err);
+                return Err(format!("Failed to make request due to {}", err.to_string()));
+            }
+        };
+
+        log!("Got response {:?}", resp);
+        let names = match resp.json::<Vec<NameEntryRawDb>>().await {
+            Ok(val) => val,
+            Err(err) => {
+                let err_str = format!("Failed to deserialize due to {}", err);
+                log!("{}", err_str);
+                return Err(err_str);
+            }
+        };
+
+        log!("Fetched {} names", names.iter().len());
+        Ok(names)
+    }
+
+    /// # get_mock_data
+    /// Backup provider for debug fetching of string data
+    pub async fn get_mock_data() -> Result<Vec<NameEntryRawDb>, String> {
+        let _db_details =
+            use_context::<DatabaseDetails>().expect("Failed to get the database details");
+
+        log!("Fetching begins");
+        return Ok(vec![
         NameEntryRawDb {
             id: 1,
             name: "Lacy".to_string(),
@@ -929,4 +945,5 @@ pub async fn get_mock_data() -> Result<Vec<NameEntryRawDb>, String> {
             ..Default::default()
         },
     ]);
+    }
 }
