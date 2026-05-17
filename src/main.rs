@@ -148,11 +148,11 @@ pub struct NameEntryRawDb {
 
 impl NameEntryRawDb {
     async fn get_data() -> Result<Vec<NameEntryRawDb>, String> {
-        if cfg!(debug_assertions) {
+        //if cfg!(debug_assertions) {
             get_mock_data().await
-        } else {
-            Self::get_real_data().await
-        }
+        //} else {
+        //    Self::get_real_data().await
+        //}
     }
 
     pub async fn get_real_data() -> Result<Vec<NameEntryRawDb>, String> {
