@@ -20,6 +20,8 @@ fn App() -> impl IntoView {
         supabase_url
     );
 
+    let suggestions = SuggestionsManager::new(supabase_url, publishable_api_key);
+
     // Keep the list of names as a local resource that takes time to fetch
     let names = LocalResource::new(move || async move {
         fetch_names(&supabase_url, &publishable_api_key).await
@@ -64,14 +66,16 @@ fn App() -> impl IntoView {
         <TitleEntry/>
         <div class="main">
 
-        <div class="search-container">
-            <SearchBar value=query set_value=set_query />
-            <ShowRejectedBox value=show_rejected set_value=set_show_rejected />
+        
+        <SleekTextInput placeholder="Search names" value=query set_value=set_query />
+        <ShowRejectedBox value=show_rejected set_value=set_show_rejected />
             
-        </div>
+        
 
         <NamesList names=filtered_names />
             //{AlphabetNav()}
+
+        <SuggestionsRenderer value = suggestions />
 
         </div>
 
@@ -87,23 +91,24 @@ fn TitleEntry() -> impl IntoView {
                 src = "images/headshot.jpg"
                 class = "profile-circle"
             />
-            <h1 class="title"> "Name this bitch :)"</h1>
+            <h1 class="title"> "Name this bitch 🪿"</h1>
             </div>
         </header>
     }
 }
 
 #[component]
-fn SearchBar(value: ReadSignal<String>, set_value: WriteSignal<String>) -> impl IntoView {
+fn SleekTextInput(placeholder: &'static str, value: ReadSignal<String>, set_value: WriteSignal<String>) -> impl IntoView {
     view! {
-
+        <div class="search-container">
           <input
                 class="sleek-input"
                 type="text"
-                placeholder="Search names"
+                placeholder=placeholder
                 prop:value=value
                 on:input=move |e| set_value.set(event_target_value(&e))
             />
+        </div>
 
     }
 }
@@ -365,3 +370,77 @@ async fn fetch_names(url: &str, api_key: &str) -> Result<Vec<NameEntry>, String>
     log!("Fetched {} names", names.iter().len());
     Ok(names)
 }
+
+
+
+struct SuggestionsManager
+{
+    pub url: &'static str,
+    pub api: &'static str,
+
+    pub suggestion_read: ReadSignal<String>,
+    pub suggestion_write: WriteSignal<String>,
+
+    pub notes_read: ReadSignal<String>,
+    pub notes_write: WriteSignal<String>,
+}
+
+impl SuggestionsManager
+{
+    fn new(url: &'static str, api: &'static str) -> Self
+    {
+        let (sugg_read, sugg_write) = signal(String::new());
+        let (notes_read, notes_write) = signal(String::new());
+        SuggestionsManager { url, api, suggestion_read: sugg_read, suggestion_write: sugg_write, notes_read, notes_write }
+    }
+
+
+}
+
+#[component]
+fn SuggestionsRenderer(value: SuggestionsManager ) -> impl IntoView
+{
+
+    // Function to act the spawn the form submission 
+    let on_click = move|_| {
+        let suggestion = value.suggestion_read.get();
+        let notes = value.notes_read.get();
+
+        log!("Suggestion recieved \"{}\" : \"{}\"", suggestion, notes);
+    };
+
+    view! {
+        <div>
+            <label class="sleek-checkbox">
+            <h2> "Suggestions?"</h2>
+            </label>
+        </div>
+
+        <form on:submit = move |e| {
+                e.prevent_default();
+                on_click(());
+            }>
+
+        <div class="input-group">
+        <SleekTextInput 
+            placeholder="Suggested name" 
+            value=value.suggestion_read 
+            set_value=value.suggestion_write 
+        />
+
+        <button type="submit" class="sleek-button">
+            "Suggest"
+        </button>
+        </div>
+
+        <SleekTextInput 
+            placeholder="Notes (From who? Why? etc.)" 
+            value=value.notes_read 
+            set_value=value.notes_write 
+        />
+
+        </form>
+        
+    }
+}
+

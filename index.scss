@@ -115,3 +115,29 @@
     gap: 2px;
     background-color: #52e49f;
 }
+
+//
+// Suggestions
+//
+
+.input-group {
+    display:flex;
+    gap: 8px;
+}
+
+.sleek-button{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    //padding: 12px 24px;
+    margin: 14px 0px;
+    color:#757575;
+    white-space: nowrap;
+
+    background-color: #eaeaea;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(100, 108, 255, 0.2);
+}
+
