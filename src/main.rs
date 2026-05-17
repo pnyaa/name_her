@@ -20,71 +20,26 @@ fn App() -> impl IntoView {
     let names_resource = LocalResource::new(move || async move { NameManager::new_async().await });
     provide_context(NameResource(names_resource.clone()));
 
+    // Displayable features
+    let filtering = NameFilteringDisplay::new();
     let suggestions = SuggestionsManager::new();
 
-    // Search bar query signals
-    let (query, set_query) = signal(String::new());
-
-    // Checkbox : Show rejected
-    let (show_rejected, set_show_rejected) = signal(false);
-
-    // Future searchable which responds to the search bar requests
-    let filtered_names = move || {
-        let q = query.get().to_lowercase();
-        log!("From the filtering search bar \"{}\"", q);
-
-        let name_manager = use_context::<NameResource>().expect("Database should exist");
-
-        match name_manager.0.get() {
-            Some(manager) => match manager.list {
-                Ok(names) => {
-
-                    // Extract the matching names, right now we're copying the ones that 
-                    // pass the filter so that they can be displayed. 
-                    // TODO: Try and remove the copy
-                    let v = names
-                        .iter()
-                        .filter(|n| {
-                            let rejected = match n.rejected {
-                                Some(r) => r,
-                                None => false,
-                            };
-                            if rejected && (!show_rejected.get())
-                            {
-                                return false;
-                            }
-                            n.name.to_lowercase().contains(&q)}
-                        
-                        )
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    Ok(v)
-                }
-                Err(e) => Err(e),
-            },
-            None => Err("Failed to fetch unwrap".to_string()),
-        }
-    };
 
     view! {
         <TitleEntry/>
         <div class="main">
 
-
-        <SleekTextInput placeholder="Search names" value=query set_value=set_query />
-        <ShowRejectedBox value=show_rejected set_value=set_show_rejected />
-
-
-
-        <NamesList names=filtered_names />
-            //{AlphabetNav()}
-
+        <NameFilteringDisplayRenderer value=filtering />
         <SuggestionsRenderer value = suggestions />
 
         </div>
 
     }
 }
+
+// -----------------------------------------------------------------------------------------------
+// Database context, for sharing public credentials
+//
 
 /// # DatabaseDetails
 /// We use this to store the public auth for the database
@@ -113,8 +68,8 @@ impl DatabaseDetails {
     }
 }
 
-//
-//
+// -----------------------------------------------------------------------------------------------
+// NameResource for sharing the list of names
 //
 
 #[derive(Clone)]
@@ -187,6 +142,86 @@ impl NameEntryRawDb {
         log!("Fetched {} names", names.iter().len());
         Ok(names)
     }
+}
+
+// -----------------------------------------------------------------------------------------------
+// Displaying the filtered names
+//
+
+struct NameFilteringDisplay
+{
+    pub filter_query: ReadSignal<String>,
+    pub set_filter_query: WriteSignal<String>,
+
+    pub show_rejected: ReadSignal<bool>,
+    pub set_show_rejected: WriteSignal<bool>
+}
+
+impl NameFilteringDisplay
+{
+    pub fn new() -> NameFilteringDisplay
+    {
+        // Search bar query signals
+        let (filter_query, set_filter_query) = signal(String::new());
+
+        // Checkbox : Show rejected
+        let (show_rejected, set_show_rejected) = signal(false);
+
+        NameFilteringDisplay { filter_query, set_filter_query, show_rejected, set_show_rejected }
+    }
+
+    pub fn into_view(self: Self) -> impl IntoView
+    {
+        // Future searchable which responds to the search bar requests
+        let filtered_names = move || {
+            let q = self.filter_query.get().to_lowercase();
+            log!("From the filtering search bar \"{}\"", q);
+
+            let name_manager = use_context::<NameResource>().expect("Database should exist");
+
+            match name_manager.0.get() {
+                Some(manager) => match manager.list {
+                    Ok(names) => {
+
+                        // Extract the matching names, right now we're copying the ones that 
+                        // pass the filter so that they can be displayed. 
+                        // TODO: Try and remove the copy
+                        let v = names
+                            .iter()
+                            .filter(|n| {
+                                let rejected = match n.rejected {
+                                    Some(r) => r,
+                                    None => false,
+                                };
+                                if rejected && (!self.show_rejected.get())
+                                {
+                                    return false;
+                                }
+                                n.name.to_lowercase().contains(&q)}
+                        
+                            )   
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        Ok(v)
+                    }
+                    Err(e) => Err(e),
+                },
+                None => Err("Failed to fetch unwrap".to_string()),
+            }
+        };
+
+        view! {
+            <SleekTextInput placeholder="Search names" value=self.filter_query set_value=self.set_filter_query />
+            <ShowRejectedBox value=self.show_rejected set_value=self.set_show_rejected />
+            <NamesList names=filtered_names />
+        }
+    }
+}
+
+#[component]
+fn NameFilteringDisplayRenderer(value: NameFilteringDisplay) -> impl IntoView
+{
+    value.into_view()
 }
 
 //
@@ -289,19 +324,6 @@ fn AlphabetNav() -> impl IntoView {
 
 fn jump_to(letter: char) {
     log!("Jump to {}", letter)
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
-struct NameEntry {
-    id: i32,
-    name: String,
-
-    rejected: Option<bool>,
-}
-
-struct NameDisplayer {
-    supabase_url: &'static str,
-    api: &'static str,
 }
 
 struct SuggestionsManager {
