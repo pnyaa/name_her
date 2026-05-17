@@ -77,13 +77,19 @@ struct NameResource(LocalResource<NameManager>);
 
 #[derive(Clone)]
 struct NameManager {
-    pub list: Result<Rc<Vec<NameEntryRawDb>>, String>,
+    pub list: Result<Rc<Vec<NameEntry>>, String>,
 }
 
 impl NameManager {
     async fn new_async() -> NameManager {
+
+        // Get our raw database source and then extract away the optionals with default values 
         let list = match NameEntryRawDb::get_data().await {
-            Ok(l) => Ok(Rc::new(l)),
+            Ok(raw_list) => {
+                
+                Ok(Rc::new(raw_list.into_iter().map(|raw| NameEntry::from_db(raw)).collect::<Vec<_>>()))
+                
+                },
             Err(e) => Err(e),
         };
 
@@ -91,11 +97,19 @@ impl NameManager {
     }
 }
 
+/// # NameEntryRawDb
+/// Raw optional values included in from the database
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct NameEntryRawDb {
     id: i32,
     name: String,
-    rejected: Option<bool>,
+    notes: Option<String>,
+    love_count: Option<u32>,
+    like_count: Option<u32>,
+    dislike_count: Option<u32>,
+    iick_count: Option<u32>,
+    is_rejected: Option<bool>,
+    is_favourite: Option<bool>,
 }
 
 impl NameEntryRawDb {
@@ -144,6 +158,41 @@ impl NameEntryRawDb {
     }
 }
 
+
+/// # NameEntry
+/// Optionals stripped out from the database for display
+#[derive(Clone)]
+pub struct NameEntry {
+    id: i32,
+    name: String,
+    notes: String,
+    love_count: u32,
+    like_count: u32,
+    dislike_count: u32,
+    iick_count: u32,
+    is_rejected: bool,
+    is_favourite: bool,
+}
+
+impl NameEntry
+{
+    pub fn from_db(entry: NameEntryRawDb) -> NameEntry
+    {
+        NameEntry { 
+            id: entry.id, 
+            name: entry.name, 
+            notes: entry.notes.map_or("".to_string(), |v| v), 
+            love_count: entry.love_count.map_or(0, |v|v), 
+            like_count: entry.like_count.map_or(0, |v|v), 
+            dislike_count: entry.dislike_count.map_or(0, |v|v), 
+            iick_count: entry.iick_count.map_or(0, |v|v), 
+            is_rejected: entry.is_rejected.map_or(false, |v|v ), 
+            is_favourite: entry.is_favourite.map_or(false, |v|v ),  
+        }
+    }
+
+}
+
 // -----------------------------------------------------------------------------------------------
 // Displaying the filtered names
 //
@@ -189,11 +238,7 @@ impl NameFilteringDisplay
                         let v = names
                             .iter()
                             .filter(|n| {
-                                let rejected = match n.rejected {
-                                    Some(r) => r,
-                                    None => false,
-                                };
-                                if rejected && (!self.show_rejected.get())
+                                if n.is_rejected && (!self.show_rejected.get())
                                 {
                                     return false;
                                 }
@@ -282,7 +327,7 @@ fn ShowRejectedBox(value: ReadSignal<bool>, set_value: WriteSignal<bool>) -> imp
 
 #[component]
 fn NamesList(
-    names: impl Fn() -> Result<Vec<NameEntryRawDb>, String> + 'static + std::marker::Send,
+    names: impl Fn() -> Result<Vec<NameEntry>, String> + 'static + std::marker::Send,
 ) -> impl IntoView {
     view! {
         <div class = "scroll-viewport">
@@ -416,7 +461,8 @@ pub async fn get_mock_data() -> Result<Vec<NameEntryRawDb>, String> {
         NameEntryRawDb {
             id: 2,
             name: "Lexie".to_string(),
-            rejected: Some(true),
+            is_rejected: Some(true),
+            ..Default::default()
         },
         NameEntryRawDb {
             id: 2,
