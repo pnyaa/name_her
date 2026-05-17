@@ -201,34 +201,45 @@ pub struct NameEntry {
     icon: char,
     name: String,
     notes: String,
-    love_count: u32,
-    like_count: u32,
-    dislike_count: u32,
-    iick_count: u32,
+    love_count: ReadSignal<u32>,
+    love_count_set: WriteSignal<u32>,
+    like_count: ReadSignal<u32>,
+    like_count_set: WriteSignal<u32>,
+    dislike_count: ReadSignal<u32>,
+    dislike_count_set: WriteSignal<u32>,
+    iick_count: ReadSignal<u32>,
+    iick_count_set: WriteSignal<u32>,
     is_rejected: bool,
     is_favourite: bool,
 }
 
-impl NameEntry
-{
-    pub fn from_db(entry: NameEntryRawDb) -> NameEntry
-    {
-        let mut n = NameEntry { 
-            id: entry.id, 
-            name: entry.name, 
-            notes: entry.notes.map_or("".to_string(), |v| v), 
-            love_count: entry.love_count.map_or(0, |v|v), 
-            like_count: entry.like_count.map_or(0, |v|v), 
-            dislike_count: entry.dislike_count.map_or(0, |v|v), 
-            iick_count: entry.iick_count.map_or(0, |v|v), 
-            is_rejected: entry.is_rejected.map_or(false, |v|v ), 
-            is_favourite: entry.is_favourite.map_or(false, |v|v ),  
+impl NameEntry {
+    pub fn from_db(entry: NameEntryRawDb) -> NameEntry {
+        let (love_count, love_count_set) = signal(entry.love_count.map_or(0, |v| v));
+        let (like_count, like_count_set) = signal(entry.like_count.map_or(0, |v| v));
+        let (dislike_count, dislike_count_set) = signal(entry.dislike_count.map_or(0, |v| v));
+        let (iick_count, iick_count_set) = signal(entry.iick_count.map_or(0, |v| v));
+
+        let mut n = NameEntry {
+            id: entry.id,
+            name: entry.name,
+            notes: entry.notes.map_or("".to_string(), |v| v),
+            love_count,
+            love_count_set,
+            like_count,
+            like_count_set,
+            dislike_count,
+            dislike_count_set,
+            iick_count,
+            iick_count_set,
+            is_rejected: entry.is_rejected.map_or(false, |v| v),
+            is_favourite: entry.is_favourite.map_or(false, |v| v),
             icon: ' ',
         };
 
         n.icon = match n.is_favourite {
             true => '⭐',
-            false => match n.is_rejected{
+            false => match n.is_rejected {
                 true => '❌',
                 false => '\u{2001}',
             },
@@ -237,34 +248,48 @@ impl NameEntry
         n
     }
 
-    pub fn on_click(name_id: i32, which_button: char)
-    {
+    pub fn on_click(&self, which_button: char) {
         match which_button {
-            '💖' => {log!("Loved {}", name_id);}
-            '👍' => {}
-            '👎' => {}
-            '🤢' => {}
+            '💖' => self.love_count_set.set(self.love_count.get() + 1),
+            '👍' => self.like_count_set.set(self.like_count.get() + 1),
+            '👎' => self.dislike_count_set.set(self.dislike_count.get() + 1),
+            '🤢' => self.iick_count_set.set(self.iick_count.get() + 1),
             _ => {}
         }
     }
 
-    pub fn into_table_row(self) -> impl IntoView
-    {
-        view!{
+    pub fn into_table_row(self) -> impl IntoView {
+        let icon = self.icon;
+        let name = self.name;
+        let notes = self.notes;
+        let love_count = self.love_count;
+        let like_count = self.like_count;
+        let dislike_count = self.dislike_count;
+        let iick_count = self.iick_count;
+        let love_count_set = self.love_count_set;
+        let like_count_set = self.like_count_set;
+        let dislike_count_set = self.dislike_count_set;
+        let iick_count_set = self.iick_count_set;
+
+        let on_love = move |_| love_count_set.set(love_count.get() + 1);
+        let on_like = move |_| like_count_set.set(like_count.get() + 1);
+        let on_dislike = move |_| dislike_count_set.set(dislike_count.get() + 1);
+        let on_iick = move |_| iick_count_set.set(iick_count.get() + 1);
+
+        view! {
             <tr>
-                <th>{self.icon}</th> 
-                <th>{self.name}</th>
+                <th>{icon}</th>
+                <th>{name}</th>
                 <th>
-                    <button on:click = move|_| Self::on_click(self.id, '💖')>"💖"</button> {self.love_count}
-                    <button>"👍"</button> {self.like_count}
-                    <button>"👎"</button> {self.dislike_count}
-                    <button>"🤢"</button> {self.iick_count}
+                    <button on:click=on_love>"💖"</button> {love_count.get()}
+                    <button on:click=on_like>"👍"</button> {like_count.get()}
+                    <button on:click=on_dislike>"👎"</button> {dislike_count.get()}
+                    <button on:click=on_iick>"🤢"</button> {iick_count.get()}
                 </th>
-                <th>{self.notes}</th>
+                <th>{notes}</th>
             </tr>
         }
     }
-
 }
 
 // -----------------------------------------------------------------------------------------------
