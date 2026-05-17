@@ -121,12 +121,50 @@ impl NameManager {
     async fn new_async() -> NameManager {
         // Get our raw database source and then extract away the optionals with default values
         let list = match NameEntryRawDb::get_data().await {
-            Ok(raw_list) => Ok(Rc::new(
-                raw_list
+            Ok(raw_list) => {
+                // Fetch the list of names
+                let mut v = raw_list
                     .into_iter()
                     .map(|raw| NameEntry::from_db(raw))
-                    .collect::<Vec<_>>(),
-            )),
+                    .collect::<Vec<_>>();
+
+                // Now we get the list of votes from this device. But we always return the
+                // array of names, either with device votes or without
+                Ok(Rc::new( match VotesEntryRawDb::get_data().await
+                {
+                    Ok(votes) => {
+                        log!("Penis");
+                        for vote in &votes
+                        {
+                            v.iter_mut().filter(|f| f.id == vote.name_id).for_each(|f| {
+
+                                match &vote.vote_kind {
+                                    Some(vote) => {
+                                        log!("Nyaaa");
+                                        (*f).selected_vote_set.set(  match vote.as_str()
+                                        {
+                                            "LOVE" => Some('💖'),
+                                            "LIKE" => Some('👍'),
+                                            "DISLIKE" => Some('👎'),
+                                            "IICK" => Some('🤢'),
+                                            vote =>{
+                                                log!("User had unknown vote {}", vote);
+                                                None}
+                                        });
+                                    }
+                                    None => {}
+                                }
+                            });
+                        }
+
+                        v
+                    },
+                    Err(_) => v,
+                }))
+
+
+                
+            },
             Err(e) => Err(e),
         };
 
@@ -158,10 +196,10 @@ pub struct NameEntry {
 
 impl NameEntry {
     pub fn from_db(entry: NameEntryRawDb) -> NameEntry {
-        let (love_count, love_count_set) = signal(entry.love_count.map_or(0, |v| v));
-        let (like_count, like_count_set) = signal(entry.like_count.map_or(0, |v| v));
-        let (dislike_count, dislike_count_set) = signal(entry.dislike_count.map_or(0, |v| v));
-        let (iick_count, iick_count_set) = signal(entry.iick_count.map_or(0, |v| v));
+        let (love_count, love_count_set) = signal(entry.vote_love.map_or(0, |v| v));
+        let (like_count, like_count_set) = signal(entry.vote_like.map_or(0, |v| v));
+        let (dislike_count, dislike_count_set) = signal(entry.vote_dislike.map_or(0, |v| v));
+        let (iick_count, iick_count_set) = signal(entry.vote_iick.map_or(0, |v| v));
         let (selected_vote, selected_vote_set) = signal(None::<char>);
 
         let mut n = NameEntry {
@@ -728,10 +766,10 @@ pub struct NameEntryRawDb {
     id: i32,
     name: String,
     notes: Option<String>,
-    love_count: Option<u32>,
-    like_count: Option<u32>,
-    dislike_count: Option<u32>,
-    iick_count: Option<u32>,
+    vote_love: Option<u32>,
+    vote_like: Option<u32>,
+    vote_dislike: Option<u32>,
+    vote_iick: Option<u32>,
     is_rejected: Option<bool>,
     is_favourite: Option<bool>,
 }
@@ -792,6 +830,7 @@ impl NameEntryRawDb {
         NameEntryRawDb {
             id: 1,
             name: "Lacy".to_string(),
+            vote_love: Some(2),
             is_favourite: Some(true),
             notes: Some("Currently her favourite .................. ........... ......... ............ .............. ...... ............... .".to_string()),
             ..Default::default()
@@ -815,135 +854,192 @@ impl NameEntryRawDb {
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 4,
             name: "A".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 5,
             name: "AA".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 6,
             name: "B".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 7,
             name: "BB".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 8,
             name: "C".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 9,
             name: "CC".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 10,
             name: "D".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 11,
             name: "DD".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 12,
             name: "E".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 13,
             name: "EE".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 14,
             name: "F".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 15,
             name: "FF".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 16,
             name: "G".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 17,
             name: "GG".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 18,
             name: "H".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 19,
             name: "HH".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 20,
             name: "I".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 21,
             name: "II".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 22,
             name: "J".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 23,
             name: "JJ".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 24,
             name: "K".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 25,
             name: "KK".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 26,
             name: "L".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 27,
             name: "LL".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 28,
             name: "M".to_string(),
             ..Default::default()
         },
         NameEntryRawDb {
-            id: 2,
+            id: 29,
             name: "MM".to_string(),
             ..Default::default()
         },
     ]);
+    }
+}
+
+/// # VotesEntryRawDb
+/// Raw votes from database 
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct VotesEntryRawDb
+{
+    id: i32,
+    device_uuid: Option<String>,
+    name_id: i32,
+    vote_kind: Option<String>,
+}
+
+impl VotesEntryRawDb
+{
+    pub async fn get_data() -> Result<Vec<VotesEntryRawDb>, String>
+    {
+        Self::get_real_data().await
+    }
+
+    async fn get_real_data() -> Result<Vec<VotesEntryRawDb>, String>
+    {
+        let db_details =
+            use_context::<DatabaseDetails>().expect("Failed to get the database details");
+        //let table_url = format!("{}/rest/v1/votes?select=*", db_details.url);
+        let table_url = format!("{}/rest/v1/votes?device_uuid=eq.{}", db_details.url, db_details.uuid);
+        
+
+        // Send the request
+        let resp = match Request::get(&table_url)
+            .header("apikey", db_details.api)
+            .header("Authorization", &format!("Bearer {}", db_details.api))
+            .send()
+            .await
+        {
+            Ok(resp) => resp,
+            Err(err) => {
+                log!("Got an error response {}", err);
+                return Err(format!("Failed to make request due to {}", err.to_string()));
+            }
+        };
+        log!("Got response {:?}", resp);
+
+        log!("Got response {:?}", resp);
+        let votes = match resp.json::<Vec<VotesEntryRawDb>>().await {
+            Ok(val) => val,
+            Err(err) => {
+                let err_str = format!("Failed to deserialize due to {}", err);
+                log!("{}", err_str);
+                return Err(err_str);
+            }
+        };
+
+        log!("Fetched {} votes", votes.len());
+        Ok(votes)
+
     }
 }
