@@ -864,9 +864,9 @@ pub struct NameEntryRawDb {
 impl NameEntryRawDb {
     async fn get_data() -> Result<Vec<NameEntryRawDb>, String> {
         //if cfg!(debug_assertions) {
-        Self::get_mock_data().await
+        //Self::get_mock_data().await
         //} else {
-        //    Self::get_real_data().await
+            Self::get_real_data().await
         //}
     }
 
