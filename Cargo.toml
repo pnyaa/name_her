@@ -7,6 +7,7 @@ edition = "2024"
 gloo-net = "0.7.0"
 leptos = {version = "0.8.19", features = ["csr"]}
 leptos-use = { version = "0.18.3", features = ["storage"] }
+postgrest = "1.6.0"
 serde = { version = "1.0.228", features = ["derive"] }
 uuid = { version = "1.23.1", features = ["v4", "js"] }
 web-sys = { version = "0.3.98", features = ["Document", "HtmlElement"] }

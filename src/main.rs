@@ -1,7 +1,9 @@
 use gloo_net::http::Request;
 use leptos::logging::log;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos::{mount::mount_to_body, view, *};
+use postgrest::Postgrest;
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 use uuid::Uuid;
@@ -55,6 +57,9 @@ struct DatabaseDetails {
     /// but just gives an id a "good enough" identifier so people won't
     /// accidentally vote twice
     pub uuid: String,
+
+    /// Postgrest client for creating queries
+    pub client: Postgrest,
 }
 
 impl DatabaseDetails {
@@ -73,6 +78,9 @@ impl DatabaseDetails {
             url: supabase_url,
             api: publishable_api_key,
             uuid: Self::get_or_make_uuid(),
+            client: Postgrest::new(format!("{}/rest/v1", supabase_url))
+                .insert_header("apikey", publishable_api_key)
+                .insert_header("Authorization", format!("Bearer {}", publishable_api_key)),
         }
     }
 
@@ -103,6 +111,36 @@ impl DatabaseDetails {
             }
         }
     }
+
+    pub async fn submit_async(self, table: String, name: String, notes: String) {
+        let resp = self.client
+            .from(table)
+            .insert(
+                serde_json::json!({
+                    "name": name,
+                    "notes": notes
+                })
+                .to_string(),
+            )
+            .execute()
+            .await;
+
+        match resp 
+        {
+            Ok(resp) => log!("Success with {}", match resp.text().await {
+                Ok(e) => e,
+                Err(err) => format!("unwrap err {}", err),
+            }),
+            Err(err) => log!("Error while inserting {}", err.to_string()),
+        }
+    }
+
+    pub fn submit(self, table: String, name: String, notes: String)
+    {
+        spawn_local(self.submit_async(table, name, notes));
+
+        let _ = web_sys::window().unwrap().alert_with_message("Thank yooouu");
+    }
 }
 
 // -----------------------------------------------------------------------------------------------
@@ -130,41 +168,35 @@ impl NameManager {
 
                 // Now we get the list of votes from this device. But we always return the
                 // array of names, either with device votes or without
-                Ok(Rc::new( match VotesEntryRawDb::get_data().await
-                {
+                Ok(Rc::new(match VotesEntryRawDb::get_data().await {
                     Ok(votes) => {
                         log!("Penis");
-                        for vote in &votes
-                        {
-                            v.iter_mut().filter(|f| f.id == vote.name_id).for_each(|f| {
-
-                                match &vote.vote_kind {
+                        for vote in &votes {
+                            v.iter_mut()
+                                .filter(|f| f.id == vote.name_id)
+                                .for_each(|f| match &vote.vote_kind {
                                     Some(vote) => {
                                         log!("Nyaaa");
-                                        (*f).selected_vote_set.set(  match vote.as_str()
-                                        {
+                                        (*f).selected_vote_set.set(match vote.as_str() {
                                             "LOVE" => Some('💖'),
                                             "LIKE" => Some('👍'),
                                             "DISLIKE" => Some('👎'),
                                             "IICK" => Some('🤢'),
-                                            vote =>{
+                                            vote => {
                                                 log!("User had unknown vote {}", vote);
-                                                None}
+                                                None
+                                            }
                                         });
                                     }
                                     None => {}
-                                }
-                            });
+                                });
                         }
 
                         v
-                    },
+                    }
                     Err(_) => v,
                 }))
-
-
-                
-            },
+            }
             Err(e) => Err(e),
         };
 
@@ -610,6 +642,63 @@ impl SuggestionsManager {
             notes_write,
         }
     }
+
+    fn into_view(self) -> impl IntoView {
+        // Function to act the spawn the form submission
+        let on_click = move |_| {
+            let suggestion = self.suggestion_read.get();
+            let notes = self.notes_read.get();
+            log!("Suggestion recieved \"{}\" : \"{}\"", suggestion, notes);
+            if suggestion.is_empty() {
+                let _ = web_sys::window().unwrap().alert_with_message("Please enter a name to submit suggestion");
+                return;
+            }
+
+            use_context::<DatabaseDetails>()
+                .expect("Failed to get the database details").submit("suggestions".to_string(), suggestion, notes);
+            self.suggestion_write.set(String::new());
+            self.notes_write.set(String::new());
+        };
+
+        view! {
+            <div>
+                <label class="sleek-checkbox">
+                <h2> "Suggestions?"</h2>
+                </label>
+            </div>
+
+            <form on:submit = move |e| {
+                    e.prevent_default();
+                    on_click(());
+                }>
+
+            <div class="input-group">
+            <SleekTextInput
+                placeholder="Suggested name"
+                value=self.suggestion_read
+                set_value=self.suggestion_write
+            />
+
+            <button type="submit" class="sleek-button">
+                "Suggest"
+            </button>
+            </div>
+
+            <SleekTextInput
+                placeholder="Notes (From who? Why? etc.)"
+                value=self.notes_read
+                set_value=self.notes_write
+            />
+
+            </form>
+
+        }
+    }
+}
+
+#[component]
+fn SuggestionsRenderer(value: SuggestionsManager) -> impl IntoView {
+    value.into_view()
 }
 
 // -----------------------------------------------------------------------------------------------
@@ -642,72 +731,35 @@ impl IickManager {
             focus_trigger_write,
         }
     }
-}
 
-#[component]
-fn SuggestionsRenderer(value: SuggestionsManager) -> impl IntoView {
-    // Function to act the spawn the form submission
-    let on_click = move |_| {
-        let suggestion = value.suggestion_read.get();
-        let notes = value.notes_read.get();
-
-        log!("Suggestion recieved \"{}\" : \"{}\"", suggestion, notes);
-    };
-
-    view! {
-        <div>
-            <label class="sleek-checkbox">
-            <h2> "Suggestions?"</h2>
-            </label>
-        </div>
-
-        <form on:submit = move |e| {
-                e.prevent_default();
-                on_click(());
-            }>
-
-        <div class="input-group">
-        <SleekTextInput
-            placeholder="Suggested name"
-            value=value.suggestion_read
-            set_value=value.suggestion_write
-        />
-
-        <button type="submit" class="sleek-button">
-            "Suggest"
-        </button>
-        </div>
-
-        <SleekTextInput
-            placeholder="Notes (From who? Why? etc.)"
-            value=value.notes_read
-            set_value=value.notes_write
-        />
-
-        </form>
-
-    }
-}
-
-#[component]
-fn IickReasonRenderer(value: IickManager) -> impl IntoView {
-    let reason_input_ref = NodeRef::<html::Input>::new();
+    fn into_view(self) -> impl IntoView
+    {
+        let reason_input_ref = NodeRef::<html::Input>::new();
 
     let on_submit = move |_| {
-        let name = value.name_read.get();
-        let reason = value.reason_read.get();
+        let name = self.name_read.get();
+        let reason = self.reason_read.get();
 
         log!("Iick reason recieved for \"{}\" : \"{}\"", name, reason);
 
+        if name.is_empty() {
+            let _ = web_sys::window().unwrap().alert_with_message("Please enter a name to submit iick");
+                return;
+            }
+
+        use_context::<DatabaseDetails>()
+                .expect("Failed to get the database details").submit("iicks".to_string(), name, reason);
+
         // Clear the form after submission
-        value.name_write.set(String::new());
-        value.reason_write.set(String::new());
+        self.name_write.set(String::new());
+        self.reason_write.set(String::new());
+
     };
 
     // Watch the focus trigger signal and focus the input when it changes
     // The focusing is an atomic counter, and triggers on 0 when the page loads
     Effect::new(move || {
-        let v = value.focus_trigger.get();
+        let v = self.focus_trigger.get();
         if v == 0i32 {
             return;
         }
@@ -732,8 +784,8 @@ fn IickReasonRenderer(value: IickManager) -> impl IntoView {
         <div class="input-group">
         <SleekTextInput
             placeholder="Name"
-            value=value.name_read
-            set_value=value.name_write
+            value=self.name_read
+            set_value=self.name_write
         />
 
         <button type="submit" class="sleek-button">
@@ -746,13 +798,19 @@ fn IickReasonRenderer(value: IickManager) -> impl IntoView {
             type="text"
             class="sleek-input"
             placeholder="Why does it give the iick?"
-            prop:value=value.reason_read
-            on:input=move |e| value.reason_write.set(event_target_value(&e))
+            prop:value=self.reason_read
+            on:input=move |e| self.reason_write.set(event_target_value(&e))
         />
 
         </form>
 
     }
+    }
+}
+
+#[component]
+fn IickReasonRenderer(value: IickManager) -> impl IntoView {
+    value.into_view()
 }
 
 // -----------------------------------------------------------------------------------------------
@@ -988,36 +1046,31 @@ impl NameEntryRawDb {
 }
 
 /// # VotesEntryRawDb
-/// Raw votes from database 
+/// Raw votes from database
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
-pub struct VotesEntryRawDb
-{
+pub struct VotesEntryRawDb {
     id: i32,
     device_uuid: Option<String>,
     name_id: i32,
     vote_kind: Option<String>,
 }
 
-impl VotesEntryRawDb
-{
-    pub async fn get_data() -> Result<Vec<VotesEntryRawDb>, String>
-    {
+impl VotesEntryRawDb {
+    pub async fn get_data() -> Result<Vec<VotesEntryRawDb>, String> {
         Self::get_real_data().await
     }
 
-    async fn get_real_data() -> Result<Vec<VotesEntryRawDb>, String>
-    {
+    async fn get_real_data() -> Result<Vec<VotesEntryRawDb>, String> {
         let db_details =
             use_context::<DatabaseDetails>().expect("Failed to get the database details");
         //let table_url = format!("{}/rest/v1/votes?select=*", db_details.url);
-        let table_url = format!("{}/rest/v1/votes?device_uuid=eq.{}", db_details.url, db_details.uuid);
-        
 
-        // Send the request
-        let resp = match Request::get(&table_url)
-            .header("apikey", db_details.api)
-            .header("Authorization", &format!("Bearer {}", db_details.api))
-            .send()
+        let resp = match db_details
+            .client
+            .from("votes")
+            .select("*")
+            .eq("device_uuid", db_details.uuid)
+            .execute()
             .await
         {
             Ok(resp) => resp,
@@ -1028,8 +1081,8 @@ impl VotesEntryRawDb
         };
         log!("Got response {:?}", resp);
 
-        log!("Got response {:?}", resp);
-        let votes = match resp.json::<Vec<VotesEntryRawDb>>().await {
+        let votes = match serde_json::from_str::<Vec<VotesEntryRawDb>>(&resp.text().await.unwrap())
+        {
             Ok(val) => val,
             Err(err) => {
                 let err_str = format!("Failed to deserialize due to {}", err);
@@ -1040,6 +1093,5 @@ impl VotesEntryRawDb
 
         log!("Fetched {} votes", votes.len());
         Ok(votes)
-
     }
 }
