@@ -141,6 +141,16 @@ impl DatabaseDetails {
 
         let _ = web_sys::window().unwrap().alert_with_message("Thank yooouu");
     }
+
+    pub async fn vote_async(self, name_id: i32, vote : Option<char>)
+    {
+        log!("Voting for name {} with value {:#?}", name_id, vote);
+    }
+
+    pub fn vote(self, name_id: i32, vote : Option<char>)
+    {
+        spawn_local(self.vote_async(name_id, vote));
+    }
 }
 
 // -----------------------------------------------------------------------------------------------
@@ -266,10 +276,34 @@ impl NameEntry {
 
     pub fn on_click(&self, which_button: char) {
         let current_vote = self.selected_vote.get();
+        log!("Which button {:#?}", which_button);
+
+        let db = use_context::<DatabaseDetails>()
+                .expect("Failed to get the database details");
+
+        // If user clicked the same button again, toggle it off
         if current_vote == Some(which_button) {
+            match which_button {
+                '💖' => self
+                    .love_count_set
+                    .set(self.love_count.get().saturating_sub(1)),
+                '👍' => self
+                    .like_count_set
+                    .set(self.like_count.get().saturating_sub(1)),
+                '👎' => self
+                    .dislike_count_set
+                    .set(self.dislike_count.get().saturating_sub(1)),
+                '🤢' => self
+                    .iick_count_set
+                    .set(self.iick_count.get().saturating_sub(1)),
+                _ => {}
+            }
+            self.selected_vote_set.set(None);
+            db.vote(self.id, None);
             return;
         }
 
+        // If there was a previous vote, decrement it
         if let Some(prev_vote) = current_vote {
             match prev_vote {
                 '💖' => self
@@ -288,110 +322,53 @@ impl NameEntry {
             }
         }
 
+        // Apply new vote and handle iick special-case (focus + autofill)
         match which_button {
-            '💖' => self.love_count_set.set(self.love_count.get() + 1),
-            '👍' => self.like_count_set.set(self.like_count.get() + 1),
-            '👎' => self.dislike_count_set.set(self.dislike_count.get() + 1),
-            '🤢' => self.iick_count_set.set(self.iick_count.get() + 1),
-            _ => {}
+            '💖' => { self.love_count_set.set(self.love_count.get() + 1); }
+            '👍' => { self.like_count_set.set(self.like_count.get() + 1); }
+            '👎' => { self.dislike_count_set.set(self.dislike_count.get() + 1); }
+            '🤢' => {
+                self.iick_count_set.set(self.iick_count.get() + 1);
+                if let Some(iick_mgr) = use_context::<IickManager>() {
+                    log!("Triggering iick focus");
+                    iick_mgr.name_write.set(self.name.clone());
+                    iick_mgr
+                        .focus_trigger_write
+                        .set(iick_mgr.focus_trigger.get() + 1);
+                }
+            }
+            _ => {
+                log!("None");
+            }
         }
 
+        db.vote(self.id, Some(which_button));
         self.selected_vote_set.set(Some(which_button));
     }
 
     pub fn into_table_row(self) -> impl IntoView {
+        let me = self.clone();
+
         let icon = self.icon;
         let name = self.name.clone();
-        let name_for_iick = self.name;
         let notes = self.notes;
         let love_count = self.love_count;
         let like_count = self.like_count;
         let dislike_count = self.dislike_count;
         let iick_count = self.iick_count;
         let selected_vote = self.selected_vote;
-        let selected_vote_set = self.selected_vote_set;
-        let love_count_set = self.love_count_set;
-        let like_count_set = self.like_count_set;
-        let dislike_count_set = self.dislike_count_set;
-        let iick_count_set = self.iick_count_set;
 
-        let on_love = move |_| {
-            let current = selected_vote.get();
-            if current == Some('💖') {
-                love_count_set.set(love_count.get().saturating_sub(1));
-                selected_vote_set.set(None);
-                return;
-            }
-            if current == Some('👍') {
-                like_count_set.set(like_count.get().saturating_sub(1));
-            } else if current == Some('👎') {
-                dislike_count_set.set(dislike_count.get().saturating_sub(1));
-            } else if current == Some('🤢') {
-                iick_count_set.set(iick_count.get().saturating_sub(1));
-            }
-            love_count_set.set(love_count.get() + 1);
-            selected_vote_set.set(Some('💖'));
-        };
-        let on_like = move |_| {
-            let current = selected_vote.get();
-            if current == Some('👍') {
-                like_count_set.set(like_count.get().saturating_sub(1));
-                selected_vote_set.set(None);
-                return;
-            }
-            if current == Some('💖') {
-                love_count_set.set(love_count.get().saturating_sub(1));
-            } else if current == Some('👎') {
-                dislike_count_set.set(dislike_count.get().saturating_sub(1));
-            } else if current == Some('🤢') {
-                iick_count_set.set(iick_count.get().saturating_sub(1));
-            }
-            like_count_set.set(like_count.get() + 1);
-            selected_vote_set.set(Some('👍'));
-        };
-        let on_dislike = move |_| {
-            let current = selected_vote.get();
-            if current == Some('👎') {
-                dislike_count_set.set(dislike_count.get().saturating_sub(1));
-                selected_vote_set.set(None);
-                return;
-            }
-            if current == Some('💖') {
-                love_count_set.set(love_count.get().saturating_sub(1));
-            } else if current == Some('👍') {
-                like_count_set.set(like_count.get().saturating_sub(1));
-            } else if current == Some('🤢') {
-                iick_count_set.set(iick_count.get().saturating_sub(1));
-            }
-            dislike_count_set.set(dislike_count.get() + 1);
-            selected_vote_set.set(Some('👎'));
-        };
-        let on_iick = move |_| {
-            let current = selected_vote.get();
-            if current == Some('🤢') {
-                iick_count_set.set(iick_count.get().saturating_sub(1));
-                selected_vote_set.set(None);
-                return;
-            }
-            if current == Some('💖') {
-                love_count_set.set(love_count.get().saturating_sub(1));
-            } else if current == Some('👍') {
-                like_count_set.set(like_count.get().saturating_sub(1));
-            } else if current == Some('👎') {
-                dislike_count_set.set(dislike_count.get().saturating_sub(1));
-            }
-            iick_count_set.set(iick_count.get() + 1);
-            selected_vote_set.set(Some('🤢'));
+        let me_love = me.clone();
+        let on_love = move |_| { me_love.on_click('💖'); };
 
-            // Auto-fill the iick reason box with the name and trigger focus
-            if let Some(iick_mgr) = use_context::<IickManager>() {
-                log!("Triggering iick focus");
-                iick_mgr.name_write.set(name_for_iick.clone());
-                iick_mgr
-                    .focus_trigger_write
-                    .set(iick_mgr.focus_trigger.get() + 1);
-            }
-        };
+        let me_like = me.clone();
+        let on_like = move |_| { me_like.on_click('👍'); };
+
+        let me_dislike = me.clone();
+        let on_dislike = move |_| { me_dislike.on_click('👎'); };
+
+        let me_iick = me.clone();
+        let on_iick = move |_| { me_iick.on_click('🤢'); };
 
         let selected = selected_vote.get();
         view! {
