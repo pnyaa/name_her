@@ -35,7 +35,13 @@ fn App() -> impl IntoView {
 
         <NameFilteringDisplayRenderer value=filtering />
         <SuggestionsRenderer value = suggestions />
-        <IickReasonRenderer value = iick_manager />
+                <IickReasonRenderer value = iick_manager />
+                { if cfg!(debug_assertions) {
+                        view! { <DebugAdminRenderer value = DebugAdminManager::new() /> }.into_any()
+                    } else {
+                        view! {}.into_any()
+                    }
+                }
 
         </div>
 
@@ -839,6 +845,182 @@ impl IickManager {
 
 #[component]
 fn IickReasonRenderer(value: IickManager) -> impl IntoView {
+    value.into_view()
+}
+
+// -----------------------------------------------------------------------------------------------
+// Debug admin panel (debug builds only)
+// Allows pasting an admin/service role key to insert names directly
+// -----------------------------------------------------------------------------------------------
+
+#[derive(Clone)]
+struct DebugAdminManager {
+    pub name_read: ReadSignal<String>,
+    pub name_write: WriteSignal<String>,
+
+    pub notes_read: ReadSignal<String>,
+    pub notes_write: WriteSignal<String>,
+
+    pub admin_key_read: ReadSignal<String>,
+    pub admin_key_write: WriteSignal<String>,
+
+    pub is_rejected_read: ReadSignal<bool>,
+    pub is_rejected_write: WriteSignal<bool>,
+
+    pub is_favourite_read: ReadSignal<bool>,
+    pub is_favourite_write: WriteSignal<bool>,
+}
+
+impl DebugAdminManager {
+    fn new() -> Self {
+        let (name_read, name_write) = signal(String::new());
+        let (notes_read, notes_write) = signal(String::new());
+        let (admin_key_read, admin_key_write) = signal(String::new());
+        let (is_rejected_read, is_rejected_write) = signal(false);
+        let (is_favourite_read, is_favourite_write) = signal(false);
+
+        DebugAdminManager {
+            name_read,
+            name_write,
+            notes_read,
+            notes_write,
+            admin_key_read,
+            admin_key_write,
+            is_rejected_read,
+            is_rejected_write,
+            is_favourite_read,
+            is_favourite_write,
+        }
+    }
+
+    fn into_view(self) -> impl IntoView {
+        let name_read = self.name_read;
+        let name_write = self.name_write;
+        let notes_read = self.notes_read;
+        let notes_write = self.notes_write;
+        let admin_key_read = self.admin_key_read;
+        let admin_key_write = self.admin_key_write;
+        let is_rejected_read = self.is_rejected_read;
+        let is_rejected_write = self.is_rejected_write;
+        let is_favourite_read = self.is_favourite_read;
+        let is_favourite_write = self.is_favourite_write;
+
+        let on_submit = move |_| {
+            let name = name_read.get();
+            let notes = notes_read.get();
+            let admin_key = admin_key_read.get();
+            let is_rejected = is_rejected_read.get();
+            let is_favourite = is_favourite_read.get();
+
+            log!("Admin add name \"{}\" (rejected: {}, fav: {})", name, is_rejected, is_favourite);
+
+            if name.is_empty() {
+                let _ = web_sys::window().unwrap().alert_with_message("Please enter a name to add");
+                return;
+            }
+
+            let db = use_context::<DatabaseDetails>().expect("Failed to get the database details");
+
+            // Clone signals we need inside the async block
+            let admin_key_clone = admin_key.clone();
+            let body = serde_json::json!({
+                "name": name,
+                "notes": notes,
+                "is_rejected": is_rejected,
+                "is_favourite": is_favourite
+            })
+            .to_string();
+
+            let name_write_c = name_write.clone();
+            let notes_write_c = notes_write.clone();
+            let is_rejected_write_c = is_rejected_write.clone();
+            let is_favourite_write_c = is_favourite_write.clone();
+
+            spawn_local(async move {
+                // Use Postgrest client and apply the provided admin key for this request
+                let client = Postgrest::new(format!("{}/rest/v1", db.url))
+                    //.client
+                    //.clone()
+                    .insert_header("apikey", &admin_key_clone)
+                    .insert_header("Authorization", &format!("Bearer {}", admin_key_clone));
+
+                let resp = client.from("names").insert(body).execute().await;
+
+                match resp {
+                    Ok(r) => {
+                        log!("Admin insert success: {:?}", r);
+                        name_write_c.set(String::new());
+                        notes_write_c.set(String::new());
+                        is_rejected_write_c.set(false);
+                        is_favourite_write_c.set(false);
+                        let _ = web_sys::window().unwrap().alert_with_message("Inserted name as admin");
+                    }
+                    Err(err) => {
+                        log!("Admin insert failed: {}", err);
+                        let _ = web_sys::window()
+                            .unwrap()
+                            .alert_with_message(&format!("Failed to insert: {}", err));
+                    }
+                }
+            });
+        };
+
+        view! {
+            <div class="debug-admin-panel">
+                <h3>"Admin: Add name (debug only)"</h3>
+                <form on:submit = move |e| {
+                        e.prevent_default();
+                        on_submit(());
+                    }>
+
+                    <SleekTextInput
+                        placeholder="Name"
+                        value=name_read
+                        set_value=name_write
+                    />
+
+                    <SleekTextInput
+                        placeholder="Notes"
+                        value=notes_read
+                        set_value=notes_write
+                    />
+
+                    <label class="sleek-checkbox">
+                        <input
+                            type="checkbox"
+                            on:change=move |e| is_rejected_write.set(event_target_checked(&e))
+                            prop:checked=is_rejected_read
+                        />
+                        " Is rejected"
+                    </label>
+
+                    <label class="sleek-checkbox">
+                        <input
+                            type="checkbox"
+                            on:change=move |e| is_favourite_write.set(event_target_checked(&e))
+                            prop:checked=is_favourite_read
+                        />
+                        " Is favourite"
+                    </label>
+
+                    <SleekTextInput
+                        placeholder="Admin key (paste service role)"
+                        value=admin_key_read
+                        set_value=admin_key_write
+                    />
+
+                    <button type="submit" class="sleek-button">
+                        "Add as admin"
+                    </button>
+
+                </form>
+            </div>
+        }
+    }
+}
+
+#[component]
+fn DebugAdminRenderer(value: DebugAdminManager) -> impl IntoView {
     value.into_view()
 }
 
