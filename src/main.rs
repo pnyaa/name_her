@@ -113,7 +113,8 @@ impl DatabaseDetails {
     }
 
     pub async fn submit_async(self, table: String, name: String, notes: String) {
-        let resp = self.client
+        let resp = self
+            .client
             .from(table)
             .insert(
                 serde_json::json!({
@@ -125,30 +126,64 @@ impl DatabaseDetails {
             .execute()
             .await;
 
-        match resp 
-        {
-            Ok(resp) => log!("Success with {}", match resp.text().await {
-                Ok(e) => e,
-                Err(err) => format!("unwrap err {}", err),
-            }),
+        match resp {
+            Ok(resp) => log!(
+                "Success with {}",
+                match resp.text().await {
+                    Ok(e) => e,
+                    Err(err) => format!("unwrap err {}", err),
+                }
+            ),
             Err(err) => log!("Error while inserting {}", err.to_string()),
         }
     }
 
-    pub fn submit(self, table: String, name: String, notes: String)
-    {
+    pub fn submit(self, table: String, name: String, notes: String) {
         spawn_local(self.submit_async(table, name, notes));
 
-        let _ = web_sys::window().unwrap().alert_with_message("Thank yooouu");
+        let _ = web_sys::window()
+            .unwrap()
+            .alert_with_message("Thank yooouu");
     }
 
-    pub async fn vote_async(self, name_id: i32, vote : Option<char>)
-    {
+    pub async fn vote_async(self, name_id: i32, vote: Option<char>) {
         log!("Voting for name {} with value {:#?}", name_id, vote);
+        let resp = self
+            .client
+            .from("votes")
+            .upsert(
+                serde_json::json!(
+                    {
+                        "device_uuid": self.uuid,
+                        "name_id": name_id,
+                        "vote_kind": match vote {
+                            Some('💖') => "LOVE",
+                            Some('👍') => "LIKE",
+                            Some('👎') => "DISLIKE",
+                            Some('🤢') => "IICK",
+                            _ => "NONE",
+                        }
+                    }
+                )
+                .to_string(),
+            )
+            .on_conflict("device_uuid,name_id")
+            .execute()
+            .await;
+
+        match resp {
+            Ok(resp) => log!(
+                "Success with {}",
+                match resp.text().await {
+                    Ok(e) => e,
+                    Err(err) => format!("unwrap err {}", err),
+                }
+            ),
+            Err(err) => log!("Error while inserting {}", err.to_string()),
+        }
     }
 
-    pub fn vote(self, name_id: i32, vote : Option<char>)
-    {
+    pub fn vote(self, name_id: i32, vote: Option<char>) {
         spawn_local(self.vote_async(name_id, vote));
     }
 }
@@ -278,8 +313,7 @@ impl NameEntry {
         let current_vote = self.selected_vote.get();
         log!("Which button {:#?}", which_button);
 
-        let db = use_context::<DatabaseDetails>()
-                .expect("Failed to get the database details");
+        let db = use_context::<DatabaseDetails>().expect("Failed to get the database details");
 
         // If user clicked the same button again, toggle it off
         if current_vote == Some(which_button) {
@@ -324,9 +358,15 @@ impl NameEntry {
 
         // Apply new vote and handle iick special-case (focus + autofill)
         match which_button {
-            '💖' => { self.love_count_set.set(self.love_count.get() + 1); }
-            '👍' => { self.like_count_set.set(self.like_count.get() + 1); }
-            '👎' => { self.dislike_count_set.set(self.dislike_count.get() + 1); }
+            '💖' => {
+                self.love_count_set.set(self.love_count.get() + 1);
+            }
+            '👍' => {
+                self.like_count_set.set(self.like_count.get() + 1);
+            }
+            '👎' => {
+                self.dislike_count_set.set(self.dislike_count.get() + 1);
+            }
             '🤢' => {
                 self.iick_count_set.set(self.iick_count.get() + 1);
                 if let Some(iick_mgr) = use_context::<IickManager>() {
@@ -359,16 +399,24 @@ impl NameEntry {
         let selected_vote = self.selected_vote;
 
         let me_love = me.clone();
-        let on_love = move |_| { me_love.on_click('💖'); };
+        let on_love = move |_| {
+            me_love.on_click('💖');
+        };
 
         let me_like = me.clone();
-        let on_like = move |_| { me_like.on_click('👍'); };
+        let on_like = move |_| {
+            me_like.on_click('👍');
+        };
 
         let me_dislike = me.clone();
-        let on_dislike = move |_| { me_dislike.on_click('👎'); };
+        let on_dislike = move |_| {
+            me_dislike.on_click('👎');
+        };
 
         let me_iick = me.clone();
-        let on_iick = move |_| { me_iick.on_click('🤢'); };
+        let on_iick = move |_| {
+            me_iick.on_click('🤢');
+        };
 
         let selected = selected_vote.get();
         view! {
@@ -627,12 +675,15 @@ impl SuggestionsManager {
             let notes = self.notes_read.get();
             log!("Suggestion recieved \"{}\" : \"{}\"", suggestion, notes);
             if suggestion.is_empty() {
-                let _ = web_sys::window().unwrap().alert_with_message("Please enter a name to submit suggestion");
+                let _ = web_sys::window()
+                    .unwrap()
+                    .alert_with_message("Please enter a name to submit suggestion");
                 return;
             }
 
             use_context::<DatabaseDetails>()
-                .expect("Failed to get the database details").submit("suggestions".to_string(), suggestion, notes);
+                .expect("Failed to get the database details")
+                .submit("suggestions".to_string(), suggestion, notes);
             self.suggestion_write.set(String::new());
             self.notes_write.set(String::new());
         };
@@ -709,79 +760,80 @@ impl IickManager {
         }
     }
 
-    fn into_view(self) -> impl IntoView
-    {
+    fn into_view(self) -> impl IntoView {
         let reason_input_ref = NodeRef::<html::Input>::new();
 
-    let on_submit = move |_| {
-        let name = self.name_read.get();
-        let reason = self.reason_read.get();
+        let on_submit = move |_| {
+            let name = self.name_read.get();
+            let reason = self.reason_read.get();
 
-        log!("Iick reason recieved for \"{}\" : \"{}\"", name, reason);
+            log!("Iick reason recieved for \"{}\" : \"{}\"", name, reason);
 
-        if name.is_empty() {
-            let _ = web_sys::window().unwrap().alert_with_message("Please enter a name to submit iick");
+            if name.is_empty() {
+                let _ = web_sys::window()
+                    .unwrap()
+                    .alert_with_message("Please enter a name to submit iick");
                 return;
             }
 
-        use_context::<DatabaseDetails>()
-                .expect("Failed to get the database details").submit("iicks".to_string(), name, reason);
+            use_context::<DatabaseDetails>()
+                .expect("Failed to get the database details")
+                .submit("iicks".to_string(), name, reason);
 
-        // Clear the form after submission
-        self.name_write.set(String::new());
-        self.reason_write.set(String::new());
+            // Clear the form after submission
+            self.name_write.set(String::new());
+            self.reason_write.set(String::new());
+        };
 
-    };
+        // Watch the focus trigger signal and focus the input when it changes
+        // The focusing is an atomic counter, and triggers on 0 when the page loads
+        Effect::new(move || {
+            let v = self.focus_trigger.get();
+            if v == 0i32 {
+                return;
+            }
+            log!("Focusing with value {}", v);
+            if let Some(input) = reason_input_ref.get() {
+                let _ = input.focus();
+            }
+        });
 
-    // Watch the focus trigger signal and focus the input when it changes
-    // The focusing is an atomic counter, and triggers on 0 when the page loads
-    Effect::new(move || {
-        let v = self.focus_trigger.get();
-        if v == 0i32 {
-            return;
+        view! {
+            <div>
+                <label class="sleek-checkbox">
+                <h2> "Got the iick?"</h2>
+                </label>
+            </div>
+
+            <form on:submit = move |e| {
+                    e.prevent_default();
+                    on_submit(());
+                }>
+
+            <div class="input-group">
+            <SleekTextInput
+                placeholder="Name"
+                value=self.name_read
+                set_value=self.name_write
+            />
+
+            <button type="submit" class="sleek-button">
+                "Submit"
+            </button>
+            </div>
+
+            <input
+                node_ref=reason_input_ref
+                type="text"
+                class="sleek-input"
+                placeholder="Why does it give the iick?"
+                prop:value=self.reason_read
+                on:input=move |e| self.reason_write.set(event_target_value(&e))
+            />
+
+            </form>
+
         }
-        log!("Focusing with value {}", v);
-        if let Some(input) = reason_input_ref.get() {
-            let _ = input.focus();
-        }
-    });
-
-    view! {
-        <div>
-            <label class="sleek-checkbox">
-            <h2> "Got the iick?"</h2>
-            </label>
-        </div>
-
-        <form on:submit = move |e| {
-                e.prevent_default();
-                on_submit(());
-            }>
-
-        <div class="input-group">
-        <SleekTextInput
-            placeholder="Name"
-            value=self.name_read
-            set_value=self.name_write
-        />
-
-        <button type="submit" class="sleek-button">
-            "Submit"
-        </button>
-        </div>
-
-        <input
-            node_ref=reason_input_ref
-            type="text"
-            class="sleek-input"
-            placeholder="Why does it give the iick?"
-            prop:value=self.reason_read
-            on:input=move |e| self.reason_write.set(event_target_value(&e))
-        />
-
-        </form>
-
-    }
     }
 }
 
