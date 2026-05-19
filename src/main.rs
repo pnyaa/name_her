@@ -32,7 +32,12 @@ fn App() -> impl IntoView {
     view! {
         <TitleEntry/>
         <div class="main">
-
+        <p class="intro-text">
+        "Help me pick my new name, or at least stop a silly goose from picking a cringe one! "
+        "Feel free to suggest new names, score your favourites, dislikes and your iicks! " 
+        
+        "(I am mainly trying to avoid iick names, so if possible please tell me why a name gives you the iick in the feedback form) 🪿"
+        </p>
         <NameFilteringDisplayRenderer value=filtering />
         <SuggestionsRenderer value = suggestions />
                 <IickReasonRenderer value = iick_manager />
@@ -473,48 +478,80 @@ struct NameFilteringDisplay {
 
     pub show_rejected: ReadSignal<bool>,
     pub set_show_rejected: WriteSignal<bool>,
+
+    pub sort_mode: ReadSignal<String>,
+    pub set_sort_mode: WriteSignal<String>,
+
+    pub show_favourites: ReadSignal<bool>,
+    pub set_show_favourites: WriteSignal<bool>,
 }
 
 impl NameFilteringDisplay {
     pub fn new() -> NameFilteringDisplay {
-        // Search bar query signals
         let (filter_query, set_filter_query) = signal(String::new());
-
-        // Checkbox : Show rejected
         let (show_rejected, set_show_rejected) = signal(false);
+        let (sort_mode, set_sort_mode) = signal(String::from("alpha"));
+        let (show_favourites, set_show_favourites) = signal(false);
 
         NameFilteringDisplay {
             filter_query,
             set_filter_query,
             show_rejected,
             set_show_rejected,
+            sort_mode,
+            set_sort_mode,
+            show_favourites,
+            set_show_favourites,
         }
     }
 
     pub fn into_view(self: Self) -> impl IntoView {
-        // Future searchable which responds to the search bar requests
         let filtered_names = move || {
             let q = self.filter_query.get().to_lowercase();
-            log!("From the filtering search bar \"{}\"", q);
+            let sort = self.sort_mode.get();
+            let show_rej = self.show_rejected.get();
+            let show_fav = self.show_favourites.get();
 
             let name_manager = use_context::<NameResource>().expect("Database should exist");
 
             match name_manager.0.get() {
                 Some(manager) => match manager.list {
                     Ok(names) => {
-                        // Extract the matching names, right now we're copying the ones that
-                        // pass the filter so that they can be displayed.
-                        // TODO: Try and remove the copy
-                        let v = names
+                        let mut v = names
                             .iter()
                             .filter(|n| {
-                                if n.is_rejected && (!self.show_rejected.get()) {
+                                if n.is_rejected && (!show_rej) {
+                                    return false;
+                                }
+                                if show_fav && !n.is_favourite {
                                     return false;
                                 }
                                 n.name.to_lowercase().contains(&q)
                             })
                             .cloned()
                             .collect::<Vec<_>>();
+
+                        if sort == "score" {
+                            v.sort_by(|a, b| {
+                                let sa = (a.love_count.get() as i32) * 3
+                                    + (a.like_count.get() as i32)
+                                    - (a.dislike_count.get() as i32)
+                                    - (a.iick_count.get() as i32) * 6;
+                                let sb = (b.love_count.get() as i32) * 3
+                                    + (b.like_count.get() as i32)
+                                    - (b.dislike_count.get() as i32)
+                                    - (b.iick_count.get() as i32) * 6;
+                                match sb.cmp(&sa) {
+                                    std::cmp::Ordering::Equal => {
+                                        a.name.to_lowercase().cmp(&b.name.to_lowercase())
+                                    }
+                                    ord => ord,
+                                }
+                            });
+                        } else {
+                            v.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+                        }
+
                         Ok(v)
                     }
                     Err(e) => Err(e),
@@ -523,9 +560,34 @@ impl NameFilteringDisplay {
             }
         };
 
+        let sort_mode = self.sort_mode;
+        let set_sort_mode = self.set_sort_mode;
+        let show_favourites = self.show_favourites;
+        let set_show_favourites = self.set_show_favourites;
+
         view! {
             <SleekTextInput placeholder="Search names" value=self.filter_query set_value=self.set_filter_query />
-            <ShowRejectedBox value=self.show_rejected set_value=self.set_show_rejected />
+            <div>
+            <table>
+            <tr>
+            <th> <ShowSleekBox label=" Show rejected names".to_string() value=self.show_rejected set_value=self.set_show_rejected /> </th>
+            <th> <ShowSleekBox label=" Show only favourites".to_string() value=self.show_favourites set_value=self.set_show_favourites /> </th>
+            </tr>
+            <tr>
+                <div class="sleek-checkbox">
+                <label class="sort-select">
+                    "    Sort: "
+                    <select prop:value=sort_mode on:change=move |e| set_sort_mode.set(event_target_value(&e))>
+                        <option value="alpha">"Alphabetical"</option>
+                        <option value="score">"Score total"</option>
+                    </select>
+                </label>
+            </div>
+            <th> 
+            </th>
+            </tr>
+            </table>
+            </div>
             <NamesList names=filtered_names />
         }
     }
@@ -576,7 +638,7 @@ fn SleekTextInput(
 }
 
 #[component]
-fn ShowRejectedBox(value: ReadSignal<bool>, set_value: WriteSignal<bool>) -> impl IntoView {
+fn ShowSleekBox(label: String, value: ReadSignal<bool>, set_value: WriteSignal<bool>) -> impl IntoView {
     view! {
         <label class="sleek-checkbox">
             <input
@@ -586,7 +648,7 @@ fn ShowRejectedBox(value: ReadSignal<bool>, set_value: WriteSignal<bool>) -> imp
                 }
                 prop:checked=value
             />
-            " Show rejected names"
+            {label}
         </label>
 
     }

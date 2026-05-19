@@ -60,6 +60,14 @@
     //background-color: #ff00ff;
 }
 
+.intro-text {
+    
+    color:#757575;
+
+
+    
+}
+
 //
 // Search bar
 //
@@ -84,7 +92,7 @@
 }
 
 .sleek-checkbox {
-    display:flex;
+    display:inline-block;
     color:#757575;
     cursor: pointer;
     user-select: none;
