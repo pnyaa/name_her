@@ -39,17 +39,19 @@ fn App() -> impl IntoView {
         "(I am mainly trying to avoid iick names, so if possible please tell me why a name gives you the iick in the feedback form) 🪿"
         </p>
         <NameFilteringDisplayRenderer value=filtering />
-        <SuggestionsRenderer value = suggestions />
-                <IickReasonRenderer value = iick_manager />
-                { if cfg!(debug_assertions) {
-                        view! { <DebugAdminRenderer value = DebugAdminManager::new() /> }.into_any()
-                    } else {
-                        view! {}.into_any()
-                    }
-                }
 
+        <p class="intro-text">
+        "Each device generates a new uuid so you can edit your votes. No identifying personal info is stored"
+        </p>
+
+        <SuggestionsRenderer value = suggestions />
+        <IickReasonRenderer value = iick_manager />
+        <DebugAdminRenderer value = DebugAdminManager::new() />
         </div>
 
+        <br/>
+        <br/>
+        <br/>
     }
 }
 
@@ -972,7 +974,7 @@ impl AddName
                     .insert_header("apikey", &admin_key_clone)
                     .insert_header("Authorization", &format!("Bearer {}", admin_key_clone));
 
-                let resp = client.from("names").insert(body).execute().await;
+                let resp = client.from("names").upsert(body).on_conflict("name").execute().await;
 
                 match resp {
                     Ok(r) => {
