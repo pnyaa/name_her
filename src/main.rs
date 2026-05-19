@@ -631,124 +631,6 @@ fn NameFilteringDisplayRenderer(value: NameFilteringDisplay) -> impl IntoView {
 }
 
 // -----------------------------------------------------------------------------------------------
-// Displaying the filtered names
-//
-
-#[component]
-fn TitleEntry() -> impl IntoView {
-    view! {
-        <header class="top-bar">
-            <div class="header-content">
-            <img
-                src = "images/headshot.jpg"
-                class = "profile-circle"
-            />
-            <h1 class="title"> "Name this bitch 🪿"</h1>
-            </div>
-        </header>
-    }
-}
-
-#[component]
-fn SleekTextInput(
-    placeholder: &'static str,
-    value: ReadSignal<String>,
-    set_value: WriteSignal<String>,
-) -> impl IntoView {
-    view! {
-        <div class="search-container">
-          <input
-                class="sleek-input"
-                type="text"
-                placeholder=placeholder
-                prop:value=value
-                on:input=move |e| set_value.set(event_target_value(&e))
-            />
-        </div>
-
-    }
-}
-
-#[component]
-fn ShowSleekBox(
-    label: String,
-    value: ReadSignal<bool>,
-    set_value: WriteSignal<bool>,
-) -> impl IntoView {
-    view! {
-        <label class="sleek-checkbox">
-            <input
-                type="checkbox"
-                on:change=move |e| {
-                    set_value.set(event_target_checked(&e));
-                }
-                prop:checked=value
-            />
-            {label}
-        </label>
-
-    }
-}
-
-#[component]
-fn NamesList(
-    names: impl Fn() -> Result<Vec<NameEntry>, String> + 'static + std::marker::Send,
-) -> impl IntoView {
-    view! {
-        <div class = "scroll-viewport">
-
-            <Transition fallback = move || view! {<p>"Loading names..."</p>}>
-                {move || {
-                    match names()
-                    {
-                        Ok(names) => {
-                            view! {
-                                <table class="name-table">
-                                <tr>
-                                    <th class="status-cell">Status</th>
-                                    <th class="name-cell">Name</th>
-                                    <th class="rating-cell">Rating</th>
-                                    <th class="notes-cell">Notes</th>
-                                </tr>
-
-                                {names.into_iter().map(|entry| entry.into_table_row().into_any()).collect_view()}
-
-                                </table>
-                            }.into_any()
-                                },
-                                Err(err_msg) =>
-                                {
-                                    view! {<p>{format!("Failed due to {}", err_msg)}</p>}.into_any()
-                                }
-                            }
-                        }
-                }
-            </Transition>
-
-        </div>
-    }
-}
-
-#[component]
-fn AlphabetNav() -> impl IntoView {
-    let alphabet = 'A'..='Z';
-
-    view! {
-        <div class="alphabet-nav">
-        {alphabet.map(|letter| view!{
-            <button on:click=move |_| jump_to(letter)>
-                {letter}
-            </button>
-        }).collect_view()}
-        </div>
-    }
-}
-
-fn jump_to(letter: char) {
-    log!("Jump to {}", letter)
-}
-
-// -----------------------------------------------------------------------------------------------
 // Suggestions manager
 //
 
@@ -947,9 +829,8 @@ fn IickReasonRenderer(value: IickManager) -> impl IntoView {
 }
 
 // -----------------------------------------------------------------------------------------------
-// Debug admin panel (debug builds only)
-// Allows pasting an admin/service role key to insert names directly
-// -----------------------------------------------------------------------------------------------
+// Iick manager
+//
 
 #[derive(Clone)]
 struct DebugAdminManager {
@@ -1130,6 +1011,125 @@ impl DebugAdminManager {
 fn DebugAdminRenderer(value: DebugAdminManager) -> impl IntoView {
     value.into_view()
 }
+
+// -----------------------------------------------------------------------------------------------
+// Just inputs
+//
+
+#[component]
+fn TitleEntry() -> impl IntoView {
+    view! {
+        <header class="top-bar">
+            <div class="header-content">
+            <img
+                src = "images/headshot.jpg"
+                class = "profile-circle"
+            />
+            <h1 class="title"> "Name this bitch 🪿"</h1>
+            </div>
+        </header>
+    }
+}
+
+#[component]
+fn SleekTextInput(
+    placeholder: &'static str,
+    value: ReadSignal<String>,
+    set_value: WriteSignal<String>,
+) -> impl IntoView {
+    view! {
+        <div class="search-container">
+          <input
+                class="sleek-input"
+                type="text"
+                placeholder=placeholder
+                prop:value=value
+                on:input=move |e| set_value.set(event_target_value(&e))
+            />
+        </div>
+
+    }
+}
+
+#[component]
+fn ShowSleekBox(
+    label: String,
+    value: ReadSignal<bool>,
+    set_value: WriteSignal<bool>,
+) -> impl IntoView {
+    view! {
+        <label class="sleek-checkbox">
+            <input
+                type="checkbox"
+                on:change=move |e| {
+                    set_value.set(event_target_checked(&e));
+                }
+                prop:checked=value
+            />
+            {label}
+        </label>
+
+    }
+}
+
+#[component]
+fn NamesList(
+    names: impl Fn() -> Result<Vec<NameEntry>, String> + 'static + std::marker::Send,
+) -> impl IntoView {
+    view! {
+        <div class = "scroll-viewport">
+
+            <Transition fallback = move || view! {<p>"Loading names..."</p>}>
+                {move || {
+                    match names()
+                    {
+                        Ok(names) => {
+                            view! {
+                                <table class="name-table">
+                                <tr>
+                                    <th class="status-cell">Status</th>
+                                    <th class="name-cell">Name</th>
+                                    <th class="rating-cell">Rating</th>
+                                    <th class="notes-cell">Notes</th>
+                                </tr>
+
+                                {names.into_iter().map(|entry| entry.into_table_row().into_any()).collect_view()}
+
+                                </table>
+                            }.into_any()
+                                },
+                                Err(err_msg) =>
+                                {
+                                    view! {<p>{format!("Failed due to {}", err_msg)}</p>}.into_any()
+                                }
+                            }
+                        }
+                }
+            </Transition>
+
+        </div>
+    }
+}
+
+#[component]
+fn AlphabetNav() -> impl IntoView {
+    let alphabet = 'A'..='Z';
+
+    view! {
+        <div class="alphabet-nav">
+        {alphabet.map(|letter| view!{
+            <button on:click=move |_| jump_to(letter)>
+                {letter}
+            </button>
+        }).collect_view()}
+        </div>
+    }
+}
+
+fn jump_to(letter: char) {
+    log!("Jump to {}", letter)
+}
+
 
 // -----------------------------------------------------------------------------------------------
 // Database structs
