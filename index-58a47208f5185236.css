@@ -180,7 +180,7 @@
   min-width: 0;
 }
 
-.name-table td.rating-cell button {
+.unselected-emoji {
   padding: 0.25rem 0.5rem;
   border-radius: 999px;
   border: 1px solid #ddd;
@@ -191,8 +191,19 @@
   font-size: 0.9em;
 }
 
-.name-table td.rating-cell button:hover {
-  background: #f0f0f0;
+.unselected-emoji button:active {
+  background: #bce6ff;
+}
+
+.selected-emoji {
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #ddd;
+  background: #bce6ff;
+  color: #444;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 0.9em;
 }
 
 @media (max-width: 768px) {
