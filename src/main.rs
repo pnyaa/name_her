@@ -34,8 +34,8 @@ fn App() -> impl IntoView {
         <div class="main">
         <p class="intro-text">
         "Help me pick my new name, or at least stop a silly goose from picking a cringe one! "
-        "Feel free to suggest new names, score your favourites, dislikes and your iicks! " 
-        
+        "Feel free to suggest new names, score your favourites, dislikes and your iicks! "
+
         "(I am mainly trying to avoid iick names, so if possible please tell me why a name gives you the iick in the feedback form) 🪿"
         </p>
         <NameFilteringDisplayRenderer value=filtering />
@@ -430,35 +430,67 @@ impl NameEntry {
         };
 
         let selected = selected_vote.get();
+        // MASSIVE OVERKILL BUT I COULDNL'T FIGURE OUT PROPER WAY
         view! {
             <tr>
                 <td class="status-cell">{icon}</td>
                 <td class="name-cell">{name}</td>
                 <td class="rating-cell">
-                    <div class="rating-content">
-                        <button on:click=on_love>"💖"</button>
+                    <div class="rating-content">                        
+
                         {if selected == Some('💖') {
-                            view! { <strong>{love_count.get()}</strong> }.into_any()
-                        } else {
-                            view! { <span>{love_count.get()}</span> }.into_any()
+                            view! {
+                                <button class="selected-emoji" on:click=on_love>"💖"</button>
+                                <strong>{love_count.get()}</strong>
+                                }.into_any()
+                            }
+                        else {
+                            view! {
+                                <button class="unselected-emoji" on:click=on_love>"💖"</button>
+                                <span>{love_count.get()}</span>
+                                }.into_any()
                         }}
-                        <button on:click=on_like>"👍"</button>
+
+
                         {if selected == Some('👍') {
-                            view! { <strong>{like_count.get()}</strong> }.into_any()
-                        } else {
-                            view! { <span>{like_count.get()}</span> }.into_any()
+                            view! {
+                                <button class="selected-emoji" on:click=on_like>"👍"</button>
+                                <strong>{like_count.get()}</strong>
+                            }.into_any()
+                        }
+                        else {
+                            view! {
+                                <button class="unselected-emoji" on:click=on_like>"👍"</button>
+                                <span>{like_count.get()}</span>
+                            }.into_any()
                         }}
-                        <button on:click=on_dislike>"👎"</button>
+
+
                         {if selected == Some('👎') {
-                            view! { <strong>{dislike_count.get()}</strong> }.into_any()
-                        } else {
-                            view! { <span>{dislike_count.get()}</span> }.into_any()
+                            view! {
+                                <button class="selected-emoji" on:click=on_dislike>"👎"</button>
+                                <strong>{dislike_count.get()}</strong>
+                            }.into_any()
+                        }
+                        else {
+                            view! {
+                                <button class="unselected-emoji" on:click=on_dislike>"👎"</button>
+                                <span>{dislike_count.get()}</span>
+                            }.into_any()
                         }}
-                        <button on:click=on_iick>"🤢"</button>
+
+
                         {if selected == Some('🤢') {
-                            view! { <strong>{iick_count.get()}</strong> }.into_any()
-                        } else {
-                            view! { <span>{iick_count.get()}</span> }.into_any()
+                            view! {
+                                <button class="selected-emoji" on:click=on_iick>"🤢"</button>
+                                <strong>{iick_count.get()}</strong>
+                            }.into_any()
+                        }
+                        else {
+                            view! {
+                                <button class="unselected-emoji" on:click=on_iick>"🤢"</button>
+                                <span>{iick_count.get()}</span>
+                            }.into_any()
                         }}
                     </div>
                 </td>
@@ -583,7 +615,7 @@ impl NameFilteringDisplay {
                     </select>
                 </label>
             </div>
-            <th> 
+            <th>
             </th>
             </tr>
             </table>
@@ -638,7 +670,11 @@ fn SleekTextInput(
 }
 
 #[component]
-fn ShowSleekBox(label: String, value: ReadSignal<bool>, set_value: WriteSignal<bool>) -> impl IntoView {
+fn ShowSleekBox(
+    label: String,
+    value: ReadSignal<bool>,
+    set_value: WriteSignal<bool>,
+) -> impl IntoView {
     view! {
         <label class="sleek-checkbox">
             <input
@@ -974,10 +1010,17 @@ impl DebugAdminManager {
             let is_rejected = is_rejected_read.get();
             let is_favourite = is_favourite_read.get();
 
-            log!("Admin add name \"{}\" (rejected: {}, fav: {})", name, is_rejected, is_favourite);
+            log!(
+                "Admin add name \"{}\" (rejected: {}, fav: {})",
+                name,
+                is_rejected,
+                is_favourite
+            );
 
             if name.is_empty() {
-                let _ = web_sys::window().unwrap().alert_with_message("Please enter a name to add");
+                let _ = web_sys::window()
+                    .unwrap()
+                    .alert_with_message("Please enter a name to add");
                 return;
             }
 
@@ -1015,7 +1058,9 @@ impl DebugAdminManager {
                         notes_write_c.set(String::new());
                         is_rejected_write_c.set(false);
                         is_favourite_write_c.set(false);
-                        let _ = web_sys::window().unwrap().alert_with_message("Inserted name as admin");
+                        let _ = web_sys::window()
+                            .unwrap()
+                            .alert_with_message("Inserted name as admin");
                     }
                     Err(err) => {
                         log!("Admin insert failed: {}", err);
@@ -1110,7 +1155,7 @@ impl NameEntryRawDb {
         //if cfg!(debug_assertions) {
         //Self::get_mock_data().await
         //} else {
-            Self::get_real_data().await
+        Self::get_real_data().await
         //}
     }
 
