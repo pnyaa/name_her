@@ -594,8 +594,6 @@ impl NameFilteringDisplay {
 
         let sort_mode = self.sort_mode;
         let set_sort_mode = self.set_sort_mode;
-        let show_favourites = self.show_favourites;
-        let set_show_favourites = self.set_show_favourites;
 
         view! {
             <SleekTextInput placeholder="Search names" value=self.filter_query set_value=self.set_filter_query />
@@ -1052,24 +1050,188 @@ impl AddName
 // Debug review suggestion
 //
 
-#[derive(Clone)]
-struct SuggestionsReview
-{
-
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct ReviewEntryRawDb {
+    pub id: i32,
+    pub name: String,
+    pub notes: Option<String>,
+    pub is_reviewed: Option<bool>,
 }
 
-impl SuggestionsReview
-{
-    pub fn new() -> SuggestionsReview
-    {
-        SuggestionsReview {  }
+#[derive(Clone)]
+struct SuggestionsReview {
+    pub current_read: ReadSignal<Option<ReviewEntryRawDb>>,
+    pub current_write: WriteSignal<Option<ReviewEntryRawDb>>,
+    pub loading_read: ReadSignal<bool>,
+    pub loading_write: WriteSignal<bool>,
+}
+
+impl SuggestionsReview {
+    pub fn new() -> SuggestionsReview {
+        let (current_read, current_write) = signal(None::<ReviewEntryRawDb>);
+        let (loading_read, loading_write) = signal(false);
+        SuggestionsReview {
+            current_read,
+            current_write,
+            loading_read,
+            loading_write,
+        }
     }
 
-    pub fn into_view(self, api_key: ReadSignal<String>) -> impl IntoView
-    {
-        view!{
+    pub fn into_view(self, api_key: ReadSignal<String>) -> impl IntoView {
+        let db = use_context::<DatabaseDetails>().expect("Failed to get the database details");
 
+        let current_read = self.current_read.clone();
+        let current_write = self.current_write.clone();
+        let _loading_read = self.loading_read.clone();
+        let loading_write = self.loading_write.clone();
+
+        // Fetch next unreviewed suggestion
+        let api_key_for_fetch = api_key.clone();
+        let db_for_fetch = db.clone();
+        let current_write_for_fetch = current_write.clone();
+        let loading_write_for_fetch = loading_write.clone();
+        let fetch_next = move |_| {
+            let api_key = api_key_for_fetch.clone();
+            let current_write = current_write_for_fetch.clone();
+            let loading_write = loading_write_for_fetch.clone();
+            let db = db_for_fetch.clone();
+
+            spawn_local(async move {
+                loading_write.set(true);
+                if api_key.get().is_empty() {
+                    let _ = web_sys::window()
+                        .unwrap()
+                        .alert_with_message("Please enter admin key");
+                    loading_write.set(false);
+                    return;
+                }
+
+                let client = Postgrest::new(format!("{}/rest/v1", db.url))
+                    .insert_header("apikey", &api_key.get())
+                    .insert_header("Authorization", &format!("Bearer {}", api_key.get()));
+
+                let resp = client
+                    .from("suggestions")
+                    .select("*")
+                    .eq("is_reviewed", "false")
+                    .execute()
+                    .await;
+
+                match resp {
+                    Ok(r) => {
+                        let text = match r.text().await {
+                            Ok(t) => t,
+                            Err(e) => {
+                                let _ = web_sys::window()
+                                    .unwrap()
+                                    .alert_with_message(&format!("Failed to read response: {}", e));
+                                loading_write.set(false);
+                                return;
+                            }
+                        };
+
+                        match serde_json::from_str::<Vec<ReviewEntryRawDb>>(&text) {
+                            Ok(mut items) => {
+                                if items.is_empty() {
+                                    let _ = web_sys::window()
+                                        .unwrap()
+                                        .alert_with_message("No unreviewed suggestions");
+                                    current_write.set(None);
+                                } else {
+                                    current_write.set(Some(items.remove(0)));
+                                }
+                            }
+                            Err(e) => {
+                                let _ = web_sys::window()
+                                    .unwrap()
+                                    .alert_with_message(&format!("Failed to deserialize: {}", e));
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        let _ = web_sys::window()
+                            .unwrap()
+                            .alert_with_message(&format!("Request failed: {}", err));
+                    }
+                }
+
+                loading_write.set(false);
+            });
+        };
+
+        // Mark current suggestion as reviewed
+        let api_key_for_mark = api_key.clone();
+        let db_for_mark = db.clone();
+        let _current_read_for_mark = current_read.clone();
+        let current_write_for_mark = current_write.clone();
+        // click handler will be inlined into the button so it doesn't move out
+
+        view! {
             <h3 class ="intro-text">"Admin: Review Suggestions"</h3>
+            <div class="debug-admin-panel">
+                <div>
+                    <button on:click=fetch_next>"Fetch next unreviewed suggestion"</button>
+                </div>
+
+                <div>
+                    {move || {
+                        match current_read.get() {
+                            Some(s) => {
+                                let api_key_local = api_key_for_mark.clone();
+                                let db_local = db_for_mark.clone();
+                                let current_write_local = current_write_for_mark.clone();
+
+                                view! {
+                                    <div class="review-entry">
+                                        <p><strong>{s.name.clone()}</strong></p>
+                                        <p>{s.notes.clone().unwrap_or_default()}</p>
+                                        <button on:click=move |_| {
+                                            let id = s.id;
+                                            let api_key = api_key_local.clone();
+                                            let db = db_local.clone();
+                                            let current_write = current_write_local.clone();
+
+                                            spawn_local(async move {
+                                                if api_key.get().is_empty() {
+                                                    let _ = web_sys::window()
+                                                        .unwrap()
+                                                        .alert_with_message("Please enter admin key");
+                                                    return;
+                                                }
+
+                                                let client = Postgrest::new(format!("{}/rest/v1", db.url))
+                                                    .insert_header("apikey", &api_key.get())
+                                                    .insert_header("Authorization", &format!("Bearer {}", api_key.get()));
+
+                                                let body = serde_json::json!({ "is_reviewed": true }).to_string();
+                                                let resp = client.from("suggestions").update(body).eq("id", id.to_string()).execute().await;
+
+                                                match resp {
+                                                    Ok(_) => {
+                                                        current_write.set(None);
+                                                        let _ = web_sys::window()
+                                                            .unwrap()
+                                                            .alert_with_message("Marked suggestion reviewed");
+                                                    }
+                                                    Err(err) => {
+                                                        let _ = web_sys::window()
+                                                            .unwrap()
+                                                            .alert_with_message(&format!("Failed to mark reviewed: {}", err));
+                                                    }
+                                                }
+                                            });
+                                        }>
+                                            "Mark reviewed"
+                                        </button>
+                                    </div>
+                                }.into_any()
+                            }
+                            None => view! {<p>"No suggestion loaded"</p>}.into_any()
+                        }
+                    }}
+                </div>
+            </div>
         }
     }
 }
@@ -1079,26 +1241,181 @@ impl SuggestionsReview
 //
 
 #[derive(Clone)]
-struct IickReview
-{
-
+struct IickReview {
+    pub current_read: ReadSignal<Option<ReviewEntryRawDb>>,
+    pub current_write: WriteSignal<Option<ReviewEntryRawDb>>,
+    pub loading_read: ReadSignal<bool>,
+    pub loading_write: WriteSignal<bool>,
 }
-
-impl IickReview
-{
-    pub fn new() -> IickReview
-    {
-        IickReview {  }
+impl IickReview {
+    pub fn new() -> IickReview {
+        let (current_read, current_write) = signal(None::<ReviewEntryRawDb>);
+        let (loading_read, loading_write) = signal(false);
+        IickReview {
+            current_read,
+            current_write,
+            loading_read,
+            loading_write,
+        }
     }
 
-    pub fn into_view(self, api_key: ReadSignal<String>) -> impl IntoView
-    {
-        view!{
+    pub fn into_view(self, api_key: ReadSignal<String>) -> impl IntoView {
+        let db = use_context::<DatabaseDetails>().expect("Failed to get the database details");
+
+        let current_read = self.current_read.clone();
+        let current_write = self.current_write.clone();
+        let _loading_read = self.loading_read.clone();
+        let loading_write = self.loading_write.clone();
+
+        // Fetch next unreviewed iick
+        let api_key_for_fetch = api_key.clone();
+        let db_for_fetch = db.clone();
+        let current_write_for_fetch = current_write.clone();
+        let loading_write_for_fetch = loading_write.clone();
+        let fetch_next = move |_| {
+            let api_key = api_key_for_fetch.clone();
+            let current_write = current_write_for_fetch.clone();
+            let loading_write = loading_write_for_fetch.clone();
+            let db = db_for_fetch.clone();
+
+            spawn_local(async move {
+                loading_write.set(true);
+                if api_key.get().is_empty() {
+                    let _ = web_sys::window()
+                        .unwrap()
+                        .alert_with_message("Please enter admin key");
+                    loading_write.set(false);
+                    return;
+                }
+
+                let client = Postgrest::new(format!("{}/rest/v1", db.url))
+                    .insert_header("apikey", &api_key.get())
+                    .insert_header("Authorization", &format!("Bearer {}", api_key.get()));
+
+                let resp = client
+                    .from("iicks")
+                    .select("*")
+                    .eq("is_reviewed", "false")
+                    .execute()
+                    .await;
+
+                match resp {
+                    Ok(r) => {
+                        let text = match r.text().await {
+                            Ok(t) => t,
+                            Err(e) => {
+                                let _ = web_sys::window()
+                                    .unwrap()
+                                    .alert_with_message(&format!("Failed to read response: {}", e));
+                                loading_write.set(false);
+                                return;
+                            }
+                        };
+
+                        match serde_json::from_str::<Vec<ReviewEntryRawDb>>(&text) {
+                            Ok(mut items) => {
+                                if items.is_empty() {
+                                    let _ = web_sys::window()
+                                        .unwrap()
+                                        .alert_with_message("No unreviewed iicks");
+                                    current_write.set(None);
+                                } else {
+                                    current_write.set(Some(items.remove(0)));
+                                }
+                            }
+                            Err(e) => {
+                                let _ = web_sys::window()
+                                    .unwrap()
+                                    .alert_with_message(&format!("Failed to deserialize: {}", e));
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        let _ = web_sys::window()
+                            .unwrap()
+                            .alert_with_message(&format!("Request failed: {}", err));
+                    }
+                }
+
+                loading_write.set(false);
+            });
+        };
+
+        // Mark current iick as reviewed
+        let api_key_for_mark = api_key.clone();
+        let db_for_mark = db.clone();
+        let _current_read_for_mark = current_read.clone();
+        let current_write_for_mark = current_write.clone();
+        // click handler will be inlined into the button so it doesn't move the outer closure
+
+        view! {
             <h3 class ="intro-text">"Admin: Review Iicks"</h3>
+            <div class="debug-admin-panel">
+                <div>
+                    <button on:click=fetch_next>"Fetch next unreviewed iick"</button>
+                </div>
+
+                <div>
+                    {move || {
+                        match current_read.get() {
+                            Some(s) => {
+                                let api_key_local = api_key_for_mark.clone();
+                                let db_local = db_for_mark.clone();
+                                let current_write_local = current_write_for_mark.clone();
+
+                                view! {
+                                    <div class="review-entry">
+                                        <p><strong>{s.name.clone()}</strong></p>
+                                        <p>{s.notes.clone().unwrap_or_default()}</p>
+                                        <button on:click=move |_| {
+                                            let id = s.id;
+                                            let api_key = api_key_local.clone();
+                                            let db = db_local.clone();
+                                            let current_write = current_write_local.clone();
+
+                                            spawn_local(async move {
+                                                if api_key.get().is_empty() {
+                                                    let _ = web_sys::window()
+                                                        .unwrap()
+                                                        .alert_with_message("Please enter admin key");
+                                                    return;
+                                                }
+
+                                                let client = Postgrest::new(format!("{}/rest/v1", db.url))
+                                                    .insert_header("apikey", &api_key.get())
+                                                    .insert_header("Authorization", &format!("Bearer {}", api_key.get()));
+
+                                                let body = serde_json::json!({ "is_reviewed": true }).to_string();
+                                                let resp = client.from("iicks").update(body).eq("id", id.to_string()).execute().await;
+
+                                                match resp {
+                                                    Ok(_) => {
+                                                        current_write.set(None);
+                                                        let _ = web_sys::window()
+                                                            .unwrap()
+                                                            .alert_with_message("Marked iick reviewed");
+                                                    }
+                                                    Err(err) => {
+                                                        let _ = web_sys::window()
+                                                            .unwrap()
+                                                            .alert_with_message(&format!("Failed to mark reviewed: {}", err));
+                                                    }
+                                                }
+                                            });
+                                        }>
+                                            "Mark reviewed"
+                                        </button>
+                                    </div>
+                                }.into_any()
+                            }
+                            None => view! {<p>"No iick loaded"</p>}.into_any()
+                        }
+                    }}
+                </div>
+            </div>
         }
     }
 }
-
 
 // -----------------------------------------------------------------------------------------------
 // Just inputs
