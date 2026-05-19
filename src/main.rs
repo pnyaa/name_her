@@ -834,14 +834,71 @@ fn IickReasonRenderer(value: IickManager) -> impl IntoView {
 
 #[derive(Clone)]
 struct DebugAdminManager {
+
+    // Persistent api key
+    pub admin_key_read: ReadSignal<String>,
+    pub admin_key_write: WriteSignal<String>,
+
+    // Subcomponents
+    pub add_name: AddName,
+    pub sugg_review: SuggestionsReview,
+    pub iick_review: IickReview,
+}
+
+impl DebugAdminManager {
+    fn new() -> Self {
+        let (admin_key_read, admin_key_write) = signal(String::new());
+        
+        DebugAdminManager {
+            add_name: AddName::new(),
+            sugg_review: SuggestionsReview::new(),
+            iick_review: IickReview::new(),
+            admin_key_read,
+            admin_key_write,
+        }
+    }
+
+    fn into_view(self) -> impl IntoView {
+        view! {
+
+            <SleekTextInput
+                placeholder="Admin key"
+                value=self.admin_key_read
+                set_value=self.admin_key_write
+            />
+
+            {self.add_name.into_view(self.admin_key_read)}
+            {self.sugg_review.into_view(self.admin_key_read)}
+            {self.iick_review.into_view(self.admin_key_read)}
+        }
+    }
+}
+
+#[component]
+fn DebugAdminRenderer(value: DebugAdminManager) -> impl IntoView {
+    view!{
+        <br/>
+        <br/>
+        <details>
+            <summary class = "intro-text">
+                "Admin panel toggle"
+            </summary>
+            {value.into_view()}
+        </details>
+    }
+}
+
+// -----------------------------------------------------------------------------------------------
+// Debug Add name
+//
+#[derive(Clone)]
+struct AddName
+{
     pub name_read: ReadSignal<String>,
     pub name_write: WriteSignal<String>,
 
     pub notes_read: ReadSignal<String>,
     pub notes_write: WriteSignal<String>,
-
-    pub admin_key_read: ReadSignal<String>,
-    pub admin_key_write: WriteSignal<String>,
 
     pub is_rejected_read: ReadSignal<bool>,
     pub is_rejected_write: WriteSignal<bool>,
@@ -850,21 +907,19 @@ struct DebugAdminManager {
     pub is_favourite_write: WriteSignal<bool>,
 }
 
-impl DebugAdminManager {
-    fn new() -> Self {
+impl AddName
+{
+    pub fn new() -> AddName
+    {
         let (name_read, name_write) = signal(String::new());
         let (notes_read, notes_write) = signal(String::new());
-        let (admin_key_read, admin_key_write) = signal(String::new());
         let (is_rejected_read, is_rejected_write) = signal(false);
         let (is_favourite_read, is_favourite_write) = signal(false);
-
-        DebugAdminManager {
+        AddName {  
             name_read,
             name_write,
             notes_read,
             notes_write,
-            admin_key_read,
-            admin_key_write,
             is_rejected_read,
             is_rejected_write,
             is_favourite_read,
@@ -872,24 +927,13 @@ impl DebugAdminManager {
         }
     }
 
-    fn into_view(self) -> impl IntoView {
-        let name_read = self.name_read;
-        let name_write = self.name_write;
-        let notes_read = self.notes_read;
-        let notes_write = self.notes_write;
-        let admin_key_read = self.admin_key_read;
-        let admin_key_write = self.admin_key_write;
-        let is_rejected_read = self.is_rejected_read;
-        let is_rejected_write = self.is_rejected_write;
-        let is_favourite_read = self.is_favourite_read;
-        let is_favourite_write = self.is_favourite_write;
-
-        let on_submit = move |_| {
-            let name = name_read.get();
-            let notes = notes_read.get();
-            let admin_key = admin_key_read.get();
-            let is_rejected = is_rejected_read.get();
-            let is_favourite = is_favourite_read.get();
+    pub fn submit(self, api_key: ReadSignal<String>)
+    {
+        let api_key = api_key.get();
+        let name = self.name_read.get();
+        let notes = self.notes_read.get();
+        let is_rejected = self.is_rejected_read.get();
+        let is_favourite = self.is_favourite_read.get();
 
             log!(
                 "Admin add name \"{}\" (rejected: {}, fav: {})",
@@ -908,7 +952,7 @@ impl DebugAdminManager {
             let db = use_context::<DatabaseDetails>().expect("Failed to get the database details");
 
             // Clone signals we need inside the async block
-            let admin_key_clone = admin_key.clone();
+            let admin_key_clone = api_key.clone();
             let body = serde_json::json!({
                 "name": name,
                 "notes": notes,
@@ -917,10 +961,10 @@ impl DebugAdminManager {
             })
             .to_string();
 
-            let name_write_c = name_write.clone();
-            let notes_write_c = notes_write.clone();
-            let is_rejected_write_c = is_rejected_write.clone();
-            let is_favourite_write_c = is_favourite_write.clone();
+            let name_write_c = self.name_write.clone();
+            let notes_write_c = self.notes_write.clone();
+            let is_rejected_write_c = self.is_rejected_write.clone();
+            let is_favourite_write_c = self.is_favourite_write.clone();
 
             spawn_local(async move {
                 // Use Postgrest client and apply the provided admin key for this request
@@ -951,33 +995,35 @@ impl DebugAdminManager {
                     }
                 }
             });
-        };
+    }
 
-        view! {
+    pub fn into_view(self, api_key: ReadSignal<String>) -> impl IntoView
+    {
+        view!{
             <div class="debug-admin-panel">
-                <h3>"Admin: Add name (debug only)"</h3>
+                <h3 class ="intro-text">"Admin: Add name"</h3>
                 <form on:submit = move |e| {
                         e.prevent_default();
-                        on_submit(());
+                        self.clone().submit(api_key);
                     }>
 
                     <SleekTextInput
                         placeholder="Name"
-                        value=name_read
-                        set_value=name_write
-                    />
+                        value=self.name_read
+                        set_value=self.name_write
+                    />          
 
                     <SleekTextInput
                         placeholder="Notes"
-                        value=notes_read
-                        set_value=notes_write
+                        value=self.notes_read
+                        set_value=self.notes_write
                     />
 
                     <label class="sleek-checkbox">
                         <input
                             type="checkbox"
-                            on:change=move |e| is_rejected_write.set(event_target_checked(&e))
-                            prop:checked=is_rejected_read
+                            on:change=move |e| self.is_rejected_write.set(event_target_checked(&e))
+                            prop:checked=self.is_rejected_read
                         />
                         " Is rejected"
                     </label>
@@ -985,17 +1031,11 @@ impl DebugAdminManager {
                     <label class="sleek-checkbox">
                         <input
                             type="checkbox"
-                            on:change=move |e| is_favourite_write.set(event_target_checked(&e))
-                            prop:checked=is_favourite_read
+                            on:change=move |e| self.is_favourite_write.set(event_target_checked(&e))
+                            prop:checked=self.is_favourite_read
                         />
                         " Is favourite"
                     </label>
-
-                    <SleekTextInput
-                        placeholder="Admin key (paste service role)"
-                        value=admin_key_read
-                        set_value=admin_key_write
-                    />
 
                     <button type="submit" class="sleek-button">
                         "Add as admin"
@@ -1003,14 +1043,62 @@ impl DebugAdminManager {
 
                 </form>
             </div>
+
         }
     }
 }
 
-#[component]
-fn DebugAdminRenderer(value: DebugAdminManager) -> impl IntoView {
-    value.into_view()
+// -----------------------------------------------------------------------------------------------
+// Debug review suggestion
+//
+
+#[derive(Clone)]
+struct SuggestionsReview
+{
+
 }
+
+impl SuggestionsReview
+{
+    pub fn new() -> SuggestionsReview
+    {
+        SuggestionsReview {  }
+    }
+
+    pub fn into_view(self, api_key: ReadSignal<String>) -> impl IntoView
+    {
+        view!{
+
+            <h3 class ="intro-text">"Admin: Review Suggestions"</h3>
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------------------------
+// iick review suggestion
+//
+
+#[derive(Clone)]
+struct IickReview
+{
+
+}
+
+impl IickReview
+{
+    pub fn new() -> IickReview
+    {
+        IickReview {  }
+    }
+
+    pub fn into_view(self, api_key: ReadSignal<String>) -> impl IntoView
+    {
+        view!{
+            <h3 class ="intro-text">"Admin: Review Iicks"</h3>
+        }
+    }
+}
+
 
 // -----------------------------------------------------------------------------------------------
 // Just inputs
