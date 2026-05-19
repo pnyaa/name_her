@@ -829,7 +829,7 @@ fn IickReasonRenderer(value: IickManager) -> impl IntoView {
 }
 
 // -----------------------------------------------------------------------------------------------
-// Iick manager
+// Debug admin manager
 //
 
 #[derive(Clone)]
