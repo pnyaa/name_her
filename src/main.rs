@@ -861,7 +861,7 @@ impl DebugAdminManager {
     fn into_view(self) -> impl IntoView {
         view! {
 
-            <SleekTextInput
+            <SleekPasswordInput
                 placeholder="Admin key"
                 value=self.admin_key_read
                 set_value=self.admin_key_write
@@ -1135,7 +1135,25 @@ fn SleekTextInput(
                 on:input=move |e| set_value.set(event_target_value(&e))
             />
         </div>
+    }
+}
 
+#[component]
+fn SleekPasswordInput(
+    placeholder: &'static str,
+    value: ReadSignal<String>,
+    set_value: WriteSignal<String>,
+) -> impl IntoView {
+    view! {
+        <div class="search-container">
+          <input
+                class="sleek-input"
+                type="password"
+                placeholder=placeholder
+                prop:value=value
+                on:input=move |e| set_value.set(event_target_value(&e))
+            />
+        </div>
     }
 }
 
