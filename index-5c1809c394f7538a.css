@@ -48,6 +48,10 @@
   width: 100%;
 }
 
+.intro-text {
+  color: #757575;
+}
+
 .search-container {
   width: 100%;
   display: flex;
@@ -66,7 +70,7 @@
 }
 
 .sleek-checkbox {
-  display: flex;
+  display: inline-block;
   color: #757575;
   cursor: pointer;
   user-select: none;
